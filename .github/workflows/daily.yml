@@ -1,0 +1,135 @@
+name: AgenticNow Daily Bot
+
+on:
+  # 早班：UTC 00:00 = 北京时间 08:00（推送隔夜新内容，lookback 12h，8篇）
+  # 晚班：UTC 12:00 = 北京时间 20:00（推送下午新内容，lookback 12h，6篇）
+  schedule:
+    - cron: '0 0 * * *'   # 晨推 08:00 BJT
+    - cron: '0 12 * * *'  # 晚推 20:00 BJT
+
+  # 手动触发（用于测试）
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '预览模式（不推送 Telegram）'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      max_articles:
+        description: '最多推送文章数（默认按时段自动）'
+        required: false
+        default: ''
+        type: string
+      publish_mode:
+        description: '推送模式'
+        required: false
+        default: 'individual'
+        type: choice
+        options:
+          - 'individual'
+          - 'digest'
+
+permissions:
+  contents: write   # 用于提交 seen_urls.json
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: agenticnow-bot/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          cd agenticnow-bot
+          pip install -r requirements.txt
+
+      - name: Check RSS source health (non-blocking)
+        run: |
+          cd agenticnow-bot
+          python scripts/check_sources.py || echo "⚠️ Some sources failed health check, continuing anyway."
+
+      - name: Determine run session (morning / evening)
+        id: session
+        run: |
+          HOUR=$(date -u +%H)
+          # 00:00 UTC = 晨推（08:00 BJT）：lookback 13h，最多 8 篇
+          # 12:00 UTC = 晚推（20:00 BJT）：lookback 13h，最多 6 篇
+          if [ "$HOUR" -lt 6 ]; then
+            echo "session=morning" >> $GITHUB_OUTPUT
+            echo "max_articles=8"  >> $GITHUB_OUTPUT
+            echo "hours_lookback=13" >> $GITHUB_OUTPUT
+          else
+            echo "session=evening" >> $GITHUB_OUTPUT
+            echo "max_articles=6"  >> $GITHUB_OUTPUT
+            echo "hours_lookback=13" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run AgenticNow Bot
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          RSSHUB_BASE_URL: ${{ secrets.RSSHUB_BASE_URL }}
+          ENABLE_TWITTER: ${{ secrets.ENABLE_TWITTER }}
+          PUBLISH_MODE: ${{ github.event.inputs.publish_mode || 'individual' }}
+        run: |
+          cd agenticnow-bot
+          ARGS=""
+
+          # 干跑模式
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+
+          # 文章数：手动触发可覆盖，否则按时段自动
+          MANUAL_MAX="${{ github.event.inputs.max_articles }}"
+          if [ -n "$MANUAL_MAX" ]; then
+            ARGS="$ARGS --max-articles $MANUAL_MAX"
+          else
+            ARGS="$ARGS --max-articles ${{ steps.session.outputs.max_articles }}"
+          fi
+
+          # Lookback 窗口（按时段自动）
+          ARGS="$ARGS --hours-lookback ${{ steps.session.outputs.hours_lookback }}"
+
+          # 推送模式
+          if [ -n "${{ github.event.inputs.publish_mode }}" ]; then
+            ARGS="$ARGS --mode ${{ github.event.inputs.publish_mode }}"
+          fi
+
+          # 启用 Twitter（若环境变量设置）
+          if [ "$ENABLE_TWITTER" = "true" ]; then
+            ARGS="$ARGS --enable-twitter"
+          fi
+
+          echo "=== Session: ${{ steps.session.outputs.session }} ==="
+          echo "Running: python main.py $ARGS"
+          python main.py $ARGS
+
+      - name: Commit updated seen_urls.json
+        # 仅在非预览模式下提交
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          cd agenticnow-bot
+          if git diff --quiet seen_urls.json 2>/dev/null || [ ! -f seen_urls.json ]; then
+            echo "No changes to seen_urls.json, skipping commit."
+          else
+            git config --local user.email "github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+            git add seen_urls.json
+            git commit -m "chore: update seen_urls.json [skip ci]"
+            git push
+          fi
