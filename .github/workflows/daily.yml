@@ -1,8 +1,8 @@
 name: AgenticNow Daily Bot
 
 on:
-  # 早班：UTC 00:00 = 北京时间 08:00（推送隔夜新内容，lookback 12h，8篇）
-  # 晚班：UTC 12:00 = 北京时间 20:00（推送下午新内容，lookback 12h，6篇）
+  # 早班：UTC 00:00 = 北京时间 08:00（推送隔夜新内容，lookback 13h，8篇）
+  # 晚班：UTC 12:00 = 北京时间 20:00（推送下午新内容，lookback 13h，6篇）
   schedule:
     - cron: '0 0 * * *'   # 晨推 08:00 BJT
     - cron: '0 12 * * *'  # 晚推 20:00 BJT
@@ -49,17 +49,13 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
-          cache-dependency-path: agenticnow-bot/requirements.txt
+          cache-dependency-path: requirements.txt
 
       - name: Install dependencies
-        run: |
-          cd agenticnow-bot
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
       - name: Check RSS source health (non-blocking)
-        run: |
-          cd agenticnow-bot
-          python scripts/check_sources.py || echo "⚠️ Some sources failed health check, continuing anyway."
+        run: python scripts/check_sources.py || echo "⚠️ Some sources failed health check, continuing anyway."
 
       - name: Determine run session (morning / evening)
         id: session
@@ -86,7 +82,6 @@ jobs:
           ENABLE_TWITTER: ${{ secrets.ENABLE_TWITTER }}
           PUBLISH_MODE: ${{ github.event.inputs.publish_mode || 'individual' }}
         run: |
-          cd agenticnow-bot
           ARGS=""
 
           # 干跑模式
@@ -123,7 +118,6 @@ jobs:
         # 仅在非预览模式下提交
         if: github.event.inputs.dry_run != 'true'
         run: |
-          cd agenticnow-bot
           if git diff --quiet seen_urls.json 2>/dev/null || [ ! -f seen_urls.json ]; then
             echo "No changes to seen_urls.json, skipping commit."
           else
