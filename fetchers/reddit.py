@@ -1,24 +1,31 @@
 """
 Reddit 抓取器
-使用 Reddit JSON API（公开帖子，无需登录）
+Reddit 已封锁未授权 JSON API，改用 RSS/Atom 接口
 """
 
+import calendar
 import logging
 import time
 from datetime import datetime, timedelta, timezone
 
+import feedparser
 import httpx
 
 logger = logging.getLogger(__name__)
 
 REDDIT_HEADERS = {
-    "User-Agent": "AgenticNowBot/1.0 (Telegram: @AgenticNow)",
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/122.0.0.0 Safari/537.36"
+    ),
+    "Accept": "application/rss+xml, application/atom+xml, text/xml, */*",
 }
 
 
 def fetch_subreddit(source: dict, hours_lookback: int = 48, limit: int = 25) -> list[dict]:
     """
-    抓取 subreddit 的热门帖子。
+    通过 RSS 接口抓取 subreddit 的热门帖子。
 
     Args:
         source: 包含 subreddit、name、category 的信源字典
@@ -30,7 +37,7 @@ def fetch_subreddit(source: dict, hours_lookback: int = 48, limit: int = 25) -> 
     """
     articles: list[dict] = []
     subreddit = source["subreddit"]
-    url = f"https://www.reddit.com/r/{subreddit}/hot.json?limit={limit}"
+    url = f"https://www.reddit.com/r/{subreddit}/.rss?sort=hot&limit={limit}"
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours_lookback)
 
     try:
@@ -40,50 +47,55 @@ def fetch_subreddit(source: dict, hours_lookback: int = 48, limit: int = 25) -> 
             logger.warning("[r/%s] HTTP %d", subreddit, resp.status_code)
             return articles
 
-        data = resp.json()
-        posts = data.get("data", {}).get("children", [])
+        feed = feedparser.parse(resp.content)
 
-        for post in posts:
-            p = post["data"]
+        for entry in feed.entries:
+            # 解析发布时间
+            pub_date = None
+            for field in ("published_parsed", "updated_parsed"):
+                t = getattr(entry, field, None)
+                if t:
+                    try:
+                        pub_date = datetime.fromtimestamp(
+                            calendar.timegm(t), tz=timezone.utc
+                        )
+                    except Exception:
+                        pass
+                    break
 
-            # 跳过置顶帖
-            if p.get("stickied"):
+            if pub_date and pub_date < cutoff:
                 continue
 
-            # 跳过评分过低的帖子
-            if p.get("score", 0) < 5:
+            title = getattr(entry, "title", "").strip()
+            link = getattr(entry, "link", "")
+
+            # Reddit RSS 的 link 已经是完整 URL
+            # 外链帖子的原始链接在 content 里，但解析复杂 → 直接用 reddit 链接
+            if not title or not link:
                 continue
 
-            # 时间过滤
-            created_utc = p.get("created_utc", 0)
-            pub_date = datetime.fromtimestamp(created_utc, tz=timezone.utc)
-            if pub_date < cutoff:
+            # 跳过图片/视频帖
+            if link.endswith((".jpg", ".jpeg", ".png", ".gif", ".mp4", ".webp")):
                 continue
 
-            # 外链帖用原始链接，自发帖用 Reddit permalink
-            is_self = p.get("is_self", False)
-            permalink = f"https://www.reddit.com{p.get('permalink', '')}"
-            article_url = permalink if is_self else p.get("url", permalink)
-
-            # 跳过图片/视频帖（非文章内容）
-            if article_url.endswith((".jpg", ".jpeg", ".png", ".gif", ".mp4", ".webp")):
-                continue
-
+            # 提取摘要（RSS content 是 HTML，简单截取文字）
             excerpt = ""
-            if is_self:
-                excerpt = p.get("selftext", "")[:500]
+            content = getattr(entry, "summary", "") or ""
+            if content:
+                import re
+                excerpt = re.sub(r"<[^>]+>", " ", content).strip()[:500]
 
             articles.append(
                 {
-                    "title": p.get("title", "").strip(),
-                    "url": article_url,
+                    "title": title,
+                    "url": link,
                     "source_name": f"r/{subreddit}",
                     "source_id": source["id"],
                     "category": source["category"],
-                    "published": pub_date.isoformat(),
+                    "published": pub_date.isoformat() if pub_date else "",
                     "excerpt": excerpt,
-                    "score": p.get("score", 0),
-                    "num_comments": p.get("num_comments", 0),
+                    "score": 0,
+                    "num_comments": 0,
                     "type": "reddit",
                 }
             )
