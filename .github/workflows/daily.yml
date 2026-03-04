@@ -1,13 +1,11 @@
 name: AgenticNow Daily Bot
 
 on:
-  # 早班：UTC 00:00 = 北京时间 08:00（推送隔夜新内容，lookback 13h，8篇）
-  # 晚班：UTC 12:00 = 北京时间 20:00（推送下午新内容，lookback 13h，6篇）
-  schedule:
-    - cron: '0 0 * * *'   # 晨推 08:00 BJT
-    - cron: '0 12 * * *'  # 晚推 20:00 BJT
+  # 定时触发由 cron-job.org 负责，精确到分钟
+  # 晨推：北京时间 08:00（UTC 00:00）
+  # 晚推：北京时间 20:00（UTC 12:00）
 
-  # 手动触发（用于测试）
+  # 手动 / 外部触发（cron-job.org 调用此接口）
   workflow_dispatch:
     inputs:
       dry_run:
