@@ -59,16 +59,17 @@ jobs:
         id: session
         run: |
           HOUR=$(date -u +%H)
-          # 00:00 UTC = 晨推（08:00 BJT）：lookback 13h，最多 8 篇
-          # 12:00 UTC = 晚推（20:00 BJT）：lookback 13h，最多 6 篇
+          # 00:00 UTC = 晨推（08:00 BJT）：lookback 48h，最多 8 篇
+          # 12:00 UTC = 晚推（20:00 BJT）：lookback 48h，最多 6 篇
+          # 48h 窗口确保每周/双周 Newsletter 能被捕获，去重系统防止重复推送
           if [ "$HOUR" -lt 6 ]; then
             echo "session=morning" >> $GITHUB_OUTPUT
             echo "max_articles=8"  >> $GITHUB_OUTPUT
-            echo "hours_lookback=13" >> $GITHUB_OUTPUT
+            echo "hours_lookback=48" >> $GITHUB_OUTPUT
           else
             echo "session=evening" >> $GITHUB_OUTPUT
             echo "max_articles=6"  >> $GITHUB_OUTPUT
-            echo "hours_lookback=13" >> $GITHUB_OUTPUT
+            echo "hours_lookback=48" >> $GITHUB_OUTPUT
           fi
 
       - name: Run AgenticNow Bot
