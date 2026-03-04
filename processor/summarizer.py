@@ -61,7 +61,7 @@ def _build_article_input(articles: list[dict]) -> str:
                 "title": art.get("title", ""),
                 "source": art.get("source_name", ""),
                 "category": art.get("category", ""),
-                "excerpt": art.get("excerpt", "")[:400],
+                "excerpt": art.get("excerpt", "")[:200],
                 "url": art.get("url", ""),
             }
         )
