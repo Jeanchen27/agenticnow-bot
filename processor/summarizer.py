@@ -141,9 +141,8 @@ def summarize_articles(
 
             # 使用 streaming 避免长请求超时
             with client.messages.stream(
-                model="claude-opus-4-6",
+                model="claude-sonnet-4-6",
                 max_tokens=4096,
-                output_config={"effort": "low"},   # 摘要任务无需深度推理
                 system=SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": user_message}],
             ) as stream:
