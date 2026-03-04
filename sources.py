@@ -1,6 +1,6 @@
 """
-@AgenticNow 信源配置
-精选英文信源，覆盖 AI Agent / Crypto×AI / Agentic Finance / AI工具实操
+@AgenticNow 信源配置 v5
+精选英文+中文信源，覆盖 OpenClaw生态 / AI Agent / Crypto×AI / Agentic Payment / 中文信源
 """
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -8,33 +8,28 @@
 # ─────────────────────────────────────────────────────────────────────────────
 RSS_SOURCES: list[dict] = [
 
-    # ── Newsletter: AI Agent · 通用实操 ───────────────────────────────────────
+    # ── OpenClaw 核心生态 ──────────────────────────────────────────────────
     {
-        "id": "platformer",
-        "name": "Platformer (Casey Newton)",
-        "url": "https://www.platformer.news",
-        "rss": "https://www.platformer.news/feed",
-        "category": "AI Agent",
+        "id": "steipete_blog",
+        "name": "steipete.me Blog (Peter Steinberger)",
+        "url": "https://steipete.me",
+        "rss": "https://steipete.me/feed.xml",
+        "category": "OpenClaw",
     },
     {
-        "id": "one_useful_thing",
-        "name": "One Useful Thing (Ethan Mollick)",
-        "url": "https://www.oneusefulthing.org",
-        "rss": "https://www.oneusefulthing.org/feed",
-        "category": "AI Agent",
+        "id": "forwardfuture_ai",
+        "name": "Forward Future AI",
+        "url": "https://www.forwardfuture.ai",
+        "rss": "https://www.forwardfuture.ai/rss",
+        "category": "OpenClaw",
     },
+
+    # ── AI Agent Newsletter / 博客 ─────────────────────────────────────────
     {
-        "id": "import_ai",
-        "name": "Import AI (Jack Clark)",
-        "url": "https://jack-clark.net",
-        "rss": "https://jack-clark.net/feed/",
-        "category": "AI Agent",
-    },
-    {
-        "id": "last_week_in_ai",
-        "name": "Last Week in AI",
-        "url": "https://lastweekin.ai",
-        "rss": "https://lastweekin.ai/feed",
+        "id": "nates_newsletter",
+        "name": "Nate's Newsletter",
+        "url": "https://natesnewsletter.substack.com",
+        "rss": "https://natesnewsletter.substack.com/feed",
         "category": "AI Agent",
     },
     {
@@ -43,6 +38,20 @@ RSS_SOURCES: list[dict] = [
         "url": "https://www.latent.space",
         "rss": "https://www.latent.space/feed",
         "category": "AI Dev",
+    },
+    {
+        "id": "import_ai",
+        "name": "Import AI (Jack Clark)",
+        "url": "https://importai.substack.com",
+        "rss": "https://importai.substack.com/feed",
+        "category": "AI Agent",
+    },
+    {
+        "id": "last_week_in_ai",
+        "name": "Last Week in AI",
+        "url": "https://lastweekin.ai",
+        "rss": "https://lastweekin.ai/feed",
+        "category": "AI Agent",
     },
     {
         "id": "bens_bites",
@@ -59,33 +68,53 @@ RSS_SOURCES: list[dict] = [
         "category": "AI Tools",
     },
     {
-        "id": "every_to",
-        "name": "Every.to (AI系列)",
-        "url": "https://every.to",
-        "rss": "https://every.to/rss",
+        "id": "one_useful_thing",
+        "name": "One Useful Thing (Ethan Mollick)",
+        "url": "https://oneusefulthing.substack.com",
+        "rss": "https://oneusefulthing.substack.com/feed",
         "category": "AI Agent",
     },
     {
-        "id": "the_batch",
-        "name": "The Batch (Andrew Ng)",
-        "url": "https://www.deeplearning.ai/the-batch",
-        "rss": "https://www.deeplearning.ai/feed/",
-        "category": "AI Agent",
-    },
-    # 新增可靠替代源
-    {
-        "id": "venturebeat_ai",
-        "name": "VentureBeat AI",
-        "url": "https://venturebeat.com/ai",
-        "rss": "https://venturebeat.com/category/ai/feed/",
+        "id": "interconnected",
+        "name": "Interconnected (Matt Webb)",
+        "url": "https://interconnected.org",
+        "rss": "https://interconnected.org/home/feed",
         "category": "AI Agent",
     },
     {
-        "id": "mit_tech_review",
-        "name": "MIT Technology Review",
-        "url": "https://www.technologyreview.com",
-        "rss": "https://www.technologyreview.com/feed/",
+        "id": "platformer",
+        "name": "Platformer (Casey Newton)",
+        "url": "https://www.platformer.news",
+        "rss": "https://www.platformer.news/feed",
         "category": "AI Agent",
+    },
+    {
+        "id": "rogerwong_blog",
+        "name": "Roger Wong Blog",
+        "url": "https://rogerwong.me",
+        "rss": "https://rogerwong.me/feed",
+        "category": "AI Agent",
+    },
+    {
+        "id": "simon_willison",
+        "name": "Simon Willison's Blog",
+        "url": "https://simonwillison.net",
+        "rss": "https://simonwillison.net/atom/everything/",
+        "category": "AI Dev",
+    },
+    {
+        "id": "swyx",
+        "name": "swyx (Shawn Wang)",
+        "url": "https://www.swyx.io",
+        "rss": "https://www.swyx.io/rss.xml",
+        "category": "AI Dev",
+    },
+    {
+        "id": "hackernoon_ai",
+        "name": "HackerNoon · AI Agents",
+        "url": "https://hackernoon.com/tagged/ai-agents",
+        "rss": "https://hackernoon.com/tagged/ai-agents/feed",
+        "category": "AI Dev",
     },
     {
         "id": "hn_ai",
@@ -95,65 +124,35 @@ RSS_SOURCES: list[dict] = [
         "category": "AI Dev",
     },
 
-    # ── Newsletter: Crypto × AI ───────────────────────────────────────────────
+    # ── Crypto × AI · Agentic Payment ─────────────────────────────────────
     {
-        "id": "bankless",
-        "name": "Bankless Newsletter",
-        "url": "https://www.bankless.com/read",
-        "rss": "https://www.bankless.com/feed",
+        "id": "chain_of_thought",
+        "name": "Chain of Thought",
+        "url": "https://chainofthought.xyz",
+        "rss": "https://chainofthought.xyz/feed",
         "category": "Crypto×AI",
     },
     {
-        "id": "not_boring",
-        "name": "Not Boring (Packy McCormick)",
-        "url": "https://www.notboring.co",
-        "rss": "https://www.notboring.co/feed",
+        "id": "defi0xjeff",
+        "name": "0xJeff (DeFi0xJeff)",
+        "url": "https://defi0xjeff.substack.com",
+        "rss": "https://defi0xjeff.substack.com/feed",
         "category": "Crypto×AI",
     },
     {
-        "id": "the_defiant",
-        "name": "The Defiant Newsletter",
-        "url": "https://thedefiant.io",
-        "rss": "https://thedefiant.io/feed",
-        "category": "DeFi×AI",
-    },
-    {
-        "id": "milk_road",
-        "name": "Milk Road",
-        "url": "https://milkroad.com",
-        "rss": "https://milkroad.beehiiv.com/feed",
-        "category": "Crypto",
-    },
-    {
-        "id": "unchained",
-        "name": "Unchained (Laura Shin)",
-        "url": "https://unchainedcrypto.com",
-        "rss": "https://unchainedcrypto.com/feed/",
+        "id": "the_secret_agent",
+        "name": "The Secret Agent (Chain of Thought子刊)",
+        "url": "https://agents.chainofthought.xyz",
+        "rss": "https://agents.chainofthought.xyz/feed",
         "category": "Crypto×AI",
     },
     {
-        "id": "coindesk",
-        "name": "CoinDesk",
-        "url": "https://www.coindesk.com",
-        "rss": "https://www.coindesk.com/arc/outboundfeeds/rss/",
-        "category": "Crypto×AI",
+        "id": "linas_fintech",
+        "name": "Linas' Newsletter (Fintech)",
+        "url": "https://linas.substack.com",
+        "rss": "https://linas.substack.com/feed",
+        "category": "Agentic Payment",
     },
-    {
-        "id": "decrypt",
-        "name": "Decrypt",
-        "url": "https://decrypt.co",
-        "rss": "https://decrypt.co/feed",
-        "category": "Crypto×AI",
-    },
-    {
-        "id": "balajis_blog",
-        "name": "Balaji.com",
-        "url": "https://balajis.com",
-        "rss": "https://balajis.com/feed/",
-        "category": "数字主权",
-    },
-
-    # ── Newsletter: Agentic Payment · Finance ─────────────────────────────────
     {
         "id": "payments_dive",
         "name": "Payments Dive",
@@ -162,143 +161,20 @@ RSS_SOURCES: list[dict] = [
         "category": "Agentic Payment",
     },
     {
-        "id": "0xsammy",
-        "name": "0xSammy's Web3 Snippets",
-        "url": "https://www.0xsammy.com",
-        "rss": "https://www.0xsammy.com/feed",
-        "category": "Agentic Economy",
-    },
-    {
-        "id": "thepaypers",
-        "name": "The Paypers",
-        "url": "https://www.thepaypers.com",
-        "rss": "https://www.thepaypers.com/rss",
-        "category": "Agentic Payment",
-    },
-    {
-        "id": "fintech_futures",
-        "name": "Fintech Futures",
-        "url": "https://www.fintechfutures.com",
-        "rss": "https://www.fintechfutures.com/feed/",
-        "category": "Fintech×AI",
-    },
-    {
-        "id": "a16z_crypto",
-        "name": "a16z crypto Blog",
-        "url": "https://a16zcrypto.com",
-        "rss": "https://a16zcrypto.com/posts/feed/",
-        "category": "Agentic Payment",
-    },
-
-    # ── Newsletter: AI工具实操（非技术向）────────────────────────────────────
-    {
-        "id": "superhuman",
-        "name": "Superhuman (Zain Kahn)",
-        "url": "https://www.superhumanai.com",
-        "rss": "https://www.superhumanai.com/feed",
-        "category": "AI Tools",
-    },
-    {
-        "id": "lennys_newsletter",
-        "name": "Lenny's Newsletter",
-        "url": "https://www.lennysnewsletter.com",
-        "rss": "https://www.lennysnewsletter.com/feed",
-        "category": "AI×Product",
-    },
-    {
-        "id": "futuretools",
-        "name": "FutureTools Weekly (Matt Wolfe)",
-        "url": "https://futuretools.io",
-        "rss": "https://futuretools.beehiiv.com/feed",
-        "category": "AI Tools",
-    },
-    {
-        "id": "the_neuron",
-        "name": "The Neuron",
-        "url": "https://www.theneurondaily.com",
-        "rss": "https://theneurondaily.beehiiv.com/feed",
-        "category": "AI Tools",
-    },
-
-    # ── 社区 · 媒体 ───────────────────────────────────────────────────────────
-    {
-        "id": "simon_willison",
-        "name": "Simon Willison's Blog",
-        "url": "https://simonwillison.net",
-        "rss": "https://simonwillison.net/atom/everything/",
-        "category": "AI Dev",
-    },
-    {
         "id": "stripe_blog",
-        "name": "Stripe Blog (AI/Payments)",
+        "name": "Stripe Blog",
         "url": "https://stripe.com/blog",
         "rss": "https://stripe.com/blog/feed.rss",
         "category": "Agentic Payment",
     },
 
-    # ── 个人博客 ──────────────────────────────────────────────────────────────
+    # ── 中文信源 ──────────────────────────────────────────────────────────
     {
-        "id": "swyx",
-        "name": "swyx (Shawn Wang)",
-        "url": "https://www.swyx.io",
-        "rss": "https://www.swyx.io/rss.xml",
-        "category": "AI Dev",
-    },
-    {
-        "id": "maggie_appleton",
-        "name": "Maggie Appleton",
-        "url": "https://maggieappleton.com",
-        "rss": "https://maggieappleton.com/rss.xml",
-        "category": "AI Design",
-    },
-    {
-        "id": "pragmatic_engineer",
-        "name": "The Pragmatic Engineer (Gergely Orosz)",
-        "url": "https://newsletter.pragmaticengineer.com",
-        "rss": "https://newsletter.pragmaticengineer.com/feed",
-        "category": "AI Dev",
-    },
-    {
-        "id": "semianalysis",
-        "name": "SemiAnalysis (Dylan Patel)",
-        "url": "https://www.semianalysis.com",
-        "rss": "https://www.semianalysis.com/feed",
-        "category": "AI Infra",
-    },
-    {
-        "id": "zapier_blog",
-        "name": "Zapier Blog (AI Automation)",
-        "url": "https://zapier.com/blog/ai",
-        "rss": "https://zapier.com/blog/feeds/latest/",
-        "category": "AI Automation",
-    },
-    {
-        "id": "lyn_alden_blog",
-        "name": "Lyn Alden Blog",
-        "url": "https://www.lynalden.com",
-        "rss": "https://www.lynalden.com/feed/",
-        "category": "Crypto×Macro",
-    },
-    {
-        "id": "a16z_ai",
-        "name": "a16z Research",
-        "url": "https://a16z.com",
-        "rss": "https://a16z.com/feed/",
-        "category": "AI×Crypto",
-    },
-    {
-        "id": "openai_blog",
-        "name": "OpenAI Blog",
-        "url": "https://openai.com/blog",
-        "rss": "https://openai.com/blog/rss.xml",
-        "category": "AI Agent",
-    },
-    {
-        "id": "anthropic_blog",
-        "name": "Anthropic Blog",
-        "url": "https://www.anthropic.com/blog",
-        "rss": "https://www.anthropic.com/blog/rss.xml",
-        "category": "AI Agent",
+        "id": "jiqizhixin",
+        "name": "机器之心",
+        "url": "https://www.jiqizhixin.com",
+        "rss": "https://www.jiqizhixin.com/rss",
+        "category": "中文信源",
     },
 ]
 
@@ -338,35 +214,49 @@ GITHUB_TOPICS: list[str] = ["ai-agent", "llm", "autonomous-agent", "mcp"]
 # 建议自建: https://docs.rsshub.app/deploy/
 # ─────────────────────────────────────────────────────────────────────────────
 TWITTER_SOURCES: list[dict] = [
-    {"id": "emollick",        "name": "Ethan Mollick",       "handle": "emollick",       "category": "AI Agent"},
-    {"id": "gregisenberg",    "name": "Greg Isenberg",        "handle": "gregisenberg",   "category": "AI Agent"},
-    {"id": "karpathy",        "name": "Andrej Karpathy",      "handle": "karpathy",       "category": "AI Dev"},
-    {"id": "linusekenstam",   "name": "Linus Ekenstam",       "handle": "LinusEkenstam",  "category": "AI Tools"},
-    {"id": "danshipper",      "name": "Dan Shipper",          "handle": "danshipper",     "category": "AI Tools"},
-    {"id": "steipete",        "name": "Peter Steinberger",    "handle": "steipete",       "category": "AI Agent"},
-    {"id": "jakebrowatzke",   "name": "Jake Browatzke",       "handle": "jakebrowatzke",  "category": "AI Tools"},
-    {"id": "searchbrat",      "name": "Kieran Flanagan",      "handle": "searchbrat",     "category": "AI Tools"},
-    {"id": "wes_kao_x",       "name": "Wes Kao",              "handle": "wes_kao",        "category": "AI×创作"},
-    {"id": "mrsharma",        "name": "Nik Sharma",           "handle": "mrsharma",       "category": "AI Tools"},
-    {"id": "0xteng",          "name": "Teng Yan",             "handle": "0xteng",         "category": "Crypto×AI"},
-    {"id": "shawmakesmagic",  "name": "Shaw Walters",         "handle": "shawmakesmagic", "category": "Crypto×AI"},
-    {"id": "camilarusso",     "name": "Camila Russo",         "handle": "CamilaRusso",    "category": "DeFi×AI"},
-    {"id": "hosseeb",         "name": "Haseeb Qureshi",       "handle": "hosseeb",        "category": "Crypto×AI"},
-    {"id": "cdixon",          "name": "Chris Dixon",          "handle": "cdixon",         "category": "Crypto×AI"},
-    {"id": "balajis_x",       "name": "Balaji Srinivasan",    "handle": "balajis",        "category": "数字主权"},
-    {"id": "erikvoorhees",    "name": "Erik Voorhees",        "handle": "ErikVoorhees",   "category": "DeFi×隐私"},
-    {"id": "laurashin",       "name": "Laura Shin",           "handle": "laurashin",      "category": "Crypto×AI"},
-    {"id": "lynaldencontact", "name": "Lyn Alden",            "handle": "LynAldenContact","category": "Crypto×Macro"},
-    {"id": "jimmarous",       "name": "Jim Marous",           "handle": "JimMarous",      "category": "Agentic Finance"},
-    {"id": "sytaylor",        "name": "Simon Taylor",         "handle": "sytaylor",       "category": "Agentic Finance"},
-    {"id": "lexsokolin",      "name": "Lex Sokolin",          "handle": "LexSokolin",     "category": "Agentic Finance"},
-    {"id": "rogerwong_x",     "name": "Roger Wong",           "handle": "rogerwong",      "category": "AI Agent"},
+
+    # ── OpenClaw 核心生态 ──────────────────────────────────────────────────
+    {"id": "steipete",        "name": "Peter Steinberger",    "handle": "steipete",        "category": "OpenClaw"},
+    {"id": "velvet_shark",    "name": "Radek Sienkiewicz",    "handle": "velvet_shark",    "category": "OpenClaw"},
+    {"id": "floriandarroman", "name": "Florian Darroman",     "handle": "floriandarroman", "category": "OpenClaw"},
+
+    # ── 个人 X 账号 · 英文实操派 ───────────────────────────────────────────
+    {"id": "emollick",        "name": "Ethan Mollick",        "handle": "emollick",        "category": "AI Agent"},
+    {"id": "gregisenberg",    "name": "Greg Isenberg",        "handle": "gregisenberg",    "category": "AI Agent"},
+    {"id": "mckaywrigley",    "name": "McKay Wrigley",        "handle": "mckaywrigley",    "category": "AI Agent"},
+    {"id": "yaborobot",       "name": "Yabo",                 "handle": "yaborobot",       "category": "AI Tools"},
+    {"id": "wesroth",         "name": "Wes Roth",             "handle": "WesRoth",         "category": "AI Tools"},
+    {"id": "nickscamara_",    "name": "Nick Camara",          "handle": "nickscamara_",    "category": "AI Tools"},
+    {"id": "mattshumer_",     "name": "Matt Shumer",          "handle": "mattshumer_",     "category": "AI Agent"},
+    {"id": "skiaborot",       "name": "Skiab",                "handle": "skiaborot",       "category": "AI Tools"},
+    {"id": "hwchase17",       "name": "Harrison Chase",       "handle": "hwchase17",       "category": "AI Dev"},
+    {"id": "andrewng",        "name": "Andrew Ng",            "handle": "AndrewYNg",       "category": "AI Agent"},
+    {"id": "jasonbe",         "name": "Jason Beutel",         "handle": "JasonBe",         "category": "AI Agent"},
+    {"id": "jakebrowatzke",   "name": "Jake Browatzke",       "handle": "jakebrowatzke",   "category": "AI Tools"},
+    {"id": "maboroshinosf",   "name": "Maboroshi",            "handle": "maboroshinoSF",   "category": "AI Tools"},
+    {"id": "mrsharma",        "name": "Nik Sharma",           "handle": "mrsharma",        "category": "AI Tools"},
+    {"id": "searchbrat",      "name": "Kieran Flanagan",      "handle": "searchbrat",      "category": "AI Tools"},
+    {"id": "wes_kao",         "name": "Wes Kao",              "handle": "wes_kao",         "category": "AI×创作"},
+    {"id": "ajstuyvenberg",   "name": "AJ Stuyvenberg",       "handle": "AJStuyvenberg",   "category": "AI Dev"},
+    {"id": "christinetyip",   "name": "Christine Tyip",       "handle": "christinetyip",   "category": "AI Tools"},
+    {"id": "hesamation",      "name": "Hesam",                "handle": "Hesamation",      "category": "AI Tools"},
+    {"id": "antonplex",       "name": "Anton",                "handle": "antonplex",       "category": "AI Tools"},
+
+    # ── Crypto × AI · Agentic Payment ─────────────────────────────────────
+    {"id": "shaborot",        "name": "Shaw (ai16z)",         "handle": "shaborot",        "category": "Crypto×AI"},
+    {"id": "0xsammy",         "name": "0xSammy",              "handle": "0xSammy",         "category": "Crypto×AI"},
+    {"id": "balajis_x",       "name": "Balaji Srinivasan",    "handle": "balajis",         "category": "Crypto×AI"},
+
+    # ── 中文信源 ──────────────────────────────────────────────────────────
+    {"id": "op7418",          "name": "歸藏",                  "handle": "op7418",          "category": "中文信源"},
+    {"id": "dotey",           "name": "宝玉",                  "handle": "dotey",           "category": "中文信源"},
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 分类表情符号映射
 # ─────────────────────────────────────────────────────────────────────────────
 CATEGORY_EMOJI: dict[str, str] = {
+    "OpenClaw":        "🦞",
     "AI Agent":        "🤖",
     "AI Dev":          "⚙️",
     "AI Tools":        "🛠️",
@@ -386,5 +276,6 @@ CATEGORY_EMOJI: dict[str, str] = {
     "Fintech×AI":      "💰",
     "AI×Crypto":       "🔮",
     "Crypto":          "₿",
+    "中文信源":          "🀄",
     "default":         "📰",
 }
