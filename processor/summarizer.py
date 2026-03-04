@@ -194,7 +194,7 @@ def summarize_articles(
 
             # 使用 streaming 避免长请求超时
             with client.messages.stream(
-                model="claude-sonnet-4-6",
+                model="claude-haiku-4-5",
                 max_tokens=4096,
                 system=SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": user_message}],
