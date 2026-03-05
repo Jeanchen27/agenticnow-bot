@@ -13,14 +13,7 @@ RSS_SOURCES: list[dict] = [
         "id": "steipete_blog",
         "name": "steipete.me Blog (Peter Steinberger)",
         "url": "https://steipete.me",
-        "rss": "https://steipete.me/feed.xml",
-        "category": "OpenClaw",
-    },
-    {
-        "id": "forwardfuture_ai",
-        "name": "Forward Future AI",
-        "url": "https://www.forwardfuture.ai",
-        "rss": "https://www.forwardfuture.ai/rss",
+        "rss": "https://steipete.me/rss.xml",
         "category": "OpenClaw",
     },
 
@@ -61,13 +54,6 @@ RSS_SOURCES: list[dict] = [
         "category": "AI Tools",
     },
     {
-        "id": "the_rundown_ai",
-        "name": "The Rundown AI",
-        "url": "https://www.therundown.ai",
-        "rss": "https://www.therundown.ai/rss",
-        "category": "AI Tools",
-    },
-    {
         "id": "one_useful_thing",
         "name": "One Useful Thing (Ethan Mollick)",
         "url": "https://oneusefulthing.substack.com",
@@ -92,7 +78,7 @@ RSS_SOURCES: list[dict] = [
         "id": "rogerwong_blog",
         "name": "Roger Wong Blog",
         "url": "https://rogerwong.me",
-        "rss": "https://rogerwong.me/feed",
+        "rss": "https://rogerwong.me/rss.xml",
         "category": "AI Agent",
     },
     {
@@ -126,24 +112,10 @@ RSS_SOURCES: list[dict] = [
 
     # ── Crypto × AI · Agentic Payment ─────────────────────────────────────
     {
-        "id": "chain_of_thought",
-        "name": "Chain of Thought",
-        "url": "https://chainofthought.xyz",
-        "rss": "https://chainofthought.xyz/feed",
-        "category": "Crypto×AI",
-    },
-    {
         "id": "defi0xjeff",
         "name": "0xJeff (DeFi0xJeff)",
         "url": "https://defi0xjeff.substack.com",
         "rss": "https://defi0xjeff.substack.com/feed",
-        "category": "Crypto×AI",
-    },
-    {
-        "id": "the_secret_agent",
-        "name": "The Secret Agent (Chain of Thought子刊)",
-        "url": "https://agents.chainofthought.xyz",
-        "rss": "https://agents.chainofthought.xyz/feed",
         "category": "Crypto×AI",
     },
     {
