@@ -16,6 +16,13 @@ RSS_SOURCES: list[dict] = [
         "rss": "https://steipete.me/rss.xml",
         "category": "OpenClaw",
     },
+    {
+        "id": "openclaw_cn",
+        "name": "openclaw-cn 中文汉化版",
+        "url": "https://github.com/jiulingyun/openclaw-cn",
+        "rss": "https://github.com/jiulingyun/openclaw-cn/releases.atom",
+        "category": "中文信源",
+    },
 
     # ── AI Agent Newsletter / 博客 ─────────────────────────────────────────
     {
