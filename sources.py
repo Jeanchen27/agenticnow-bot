@@ -140,14 +140,6 @@ RSS_SOURCES: list[dict] = [
         "category": "Agentic Payment",
     },
 
-    # ── 中文信源 ──────────────────────────────────────────────────────────
-    {
-        "id": "jiqizhixin",
-        "name": "机器之心",
-        "url": "https://www.jiqizhixin.com",
-        "rss": "https://www.jiqizhixin.com/rss",
-        "category": "中文信源",
-    },
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
