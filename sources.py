@@ -171,50 +171,6 @@ REDDIT_SOURCES: list[dict] = [
 # ─────────────────────────────────────────────────────────────────────────────
 GITHUB_TOPICS: list[str] = ["ai-agent", "llm", "autonomous-agent", "mcp"]
 
-# ─────────────────────────────────────────────────────────────────────────────
-# X / TWITTER 个人账号（通过 RSSHub 转为 RSS）
-# 需要设置 RSSHUB_BASE_URL 环境变量
-# 公共实例: https://rsshub.app（可能限速）
-# 建议自建: https://docs.rsshub.app/deploy/
-# ─────────────────────────────────────────────────────────────────────────────
-TWITTER_SOURCES: list[dict] = [
-
-    # ── OpenClaw 核心生态 ──────────────────────────────────────────────────
-    {"id": "steipete",        "name": "Peter Steinberger",    "handle": "steipete",        "category": "OpenClaw"},
-    {"id": "velvet_shark",    "name": "Radek Sienkiewicz",    "handle": "velvet_shark",    "category": "OpenClaw"},
-    {"id": "floriandarroman", "name": "Florian Darroman",     "handle": "floriandarroman", "category": "OpenClaw"},
-
-    # ── 个人 X 账号 · 英文实操派 ───────────────────────────────────────────
-    {"id": "emollick",        "name": "Ethan Mollick",        "handle": "emollick",        "category": "AI Agent"},
-    {"id": "gregisenberg",    "name": "Greg Isenberg",        "handle": "gregisenberg",    "category": "AI Agent"},
-    {"id": "mckaywrigley",    "name": "McKay Wrigley",        "handle": "mckaywrigley",    "category": "AI Agent"},
-    {"id": "yaborobot",       "name": "Yabo",                 "handle": "yaborobot",       "category": "AI Tools"},
-    {"id": "wesroth",         "name": "Wes Roth",             "handle": "WesRoth",         "category": "AI Tools"},
-    {"id": "nickscamara_",    "name": "Nick Camara",          "handle": "nickscamara_",    "category": "AI Tools"},
-    {"id": "mattshumer_",     "name": "Matt Shumer",          "handle": "mattshumer_",     "category": "AI Agent"},
-    {"id": "skiaborot",       "name": "Skiab",                "handle": "skiaborot",       "category": "AI Tools"},
-    {"id": "hwchase17",       "name": "Harrison Chase",       "handle": "hwchase17",       "category": "AI Dev"},
-    {"id": "andrewng",        "name": "Andrew Ng",            "handle": "AndrewYNg",       "category": "AI Agent"},
-    {"id": "jasonbe",         "name": "Jason Beutel",         "handle": "JasonBe",         "category": "AI Agent"},
-    {"id": "jakebrowatzke",   "name": "Jake Browatzke",       "handle": "jakebrowatzke",   "category": "AI Tools"},
-    {"id": "maboroshinosf",   "name": "Maboroshi",            "handle": "maboroshinoSF",   "category": "AI Tools"},
-    {"id": "mrsharma",        "name": "Nik Sharma",           "handle": "mrsharma",        "category": "AI Tools"},
-    {"id": "searchbrat",      "name": "Kieran Flanagan",      "handle": "searchbrat",      "category": "AI Tools"},
-    {"id": "wes_kao",         "name": "Wes Kao",              "handle": "wes_kao",         "category": "AI×创作"},
-    {"id": "ajstuyvenberg",   "name": "AJ Stuyvenberg",       "handle": "AJStuyvenberg",   "category": "AI Dev"},
-    {"id": "christinetyip",   "name": "Christine Tyip",       "handle": "christinetyip",   "category": "AI Tools"},
-    {"id": "hesamation",      "name": "Hesam",                "handle": "Hesamation",      "category": "AI Tools"},
-    {"id": "antonplex",       "name": "Anton",                "handle": "antonplex",       "category": "AI Tools"},
-
-    # ── Crypto × AI · Agentic Payment ─────────────────────────────────────
-    {"id": "shaborot",        "name": "Shaw (ai16z)",         "handle": "shaborot",        "category": "Crypto×AI"},
-    {"id": "0xsammy",         "name": "0xSammy",              "handle": "0xSammy",         "category": "Crypto×AI"},
-    {"id": "balajis_x",       "name": "Balaji Srinivasan",    "handle": "balajis",         "category": "Crypto×AI"},
-
-    # ── 中文信源 ──────────────────────────────────────────────────────────
-    {"id": "op7418",          "name": "歸藏",                  "handle": "op7418",          "category": "中文信源"},
-    {"id": "dotey",           "name": "宝玉",                  "handle": "dotey",           "category": "中文信源"},
-]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 分类表情符号映射

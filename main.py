@@ -2,7 +2,7 @@
 """
 AgenticNow Daily Bot
 ━━━━━━━━━━━━━━━━━━━
-每日自动抓取 80+ 英文 AI/Crypto 信源，
+每日自动抓取 RSS / Reddit / GitHub 信源，
 通过 Claude API 生成中文标题+摘要，
 推送至 @AgenticNow Telegram 频道。
 
@@ -11,7 +11,6 @@ AgenticNow Daily Bot
     python main.py --dry-run           # 预览模式（不推送 Telegram）
     python main.py --max-articles 8    # 自定义最多推送文章数
     python main.py --mode digest       # 每日合集模式
-    python main.py --enable-twitter    # 启用 X/Twitter 信源（需 RSSHub）
 """
 
 import argparse
@@ -33,7 +32,7 @@ logging.basicConfig(
 logger = logging.getLogger("agenticnow")
 
 # ─── 模块导入 ─────────────────────────────────────────────────────────────────
-from sources import RSS_SOURCES, REDDIT_SOURCES, TWITTER_SOURCES, GITHUB_TOPICS
+from sources import RSS_SOURCES, REDDIT_SOURCES, GITHUB_TOPICS
 from fetchers.rss import fetch_rss_sources
 from fetchers.reddit import fetch_reddit_sources
 from fetchers.github_trending import fetch_github_trending
@@ -43,20 +42,6 @@ from storage.dedup import URLStore
 
 
 # ─── 工具函数 ─────────────────────────────────────────────────────────────────
-
-def _build_twitter_rss_sources(rsshub_base: str) -> list[dict]:
-    """将 Twitter/X 账号转为 RSSHub RSS 信源格式。"""
-    return [
-        {
-            "id": s["id"],
-            "name": s["name"],
-            "url": f"https://x.com/{s['handle']}",
-            "rss": f"{rsshub_base.rstrip('/')}/twitter/user/{s['handle']}",
-            "category": s["category"],
-        }
-        for s in TWITTER_SOURCES
-    ]
-
 
 def _score_article(article: dict) -> float:
     """
@@ -101,13 +86,12 @@ def run(
     max_articles: int = 12,
     hours_lookback: int = 48,
     publish_mode: str = "individual",
-    enable_twitter: bool = False,
     enable_github: bool = True,
 ) -> None:
     """
     AgenticNow Bot 主流程。
 
-    1. 抓取所有信源（RSS + Reddit + GitHub + 可选 Twitter）
+    1. 抓取所有信源（RSS + Reddit + GitHub）
     2. 过滤已发送 URL
     3. 预选候选文章
     4. Claude API 生成中文摘要
@@ -125,7 +109,6 @@ def run(
     anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY")
     telegram_token = os.environ.get("TELEGRAM_BOT_TOKEN")
     telegram_channel = os.environ.get("TELEGRAM_CHANNEL_ID", "@AgenticNow")
-    rsshub_base = os.environ.get("RSSHUB_BASE_URL", "https://rsshub.app")
 
     if not anthropic_api_key:
         logger.error("ANTHROPIC_API_KEY is not set. Exiting.")
@@ -158,14 +141,6 @@ def run(
         github_articles = fetch_github_trending(topics=GITHUB_TOPICS, max_items=5)
         logger.info("   → %d repos", len(github_articles))
         all_articles.extend(github_articles)
-
-    # 4. X/Twitter via RSSHub（可选）
-    if enable_twitter:
-        twitter_rss = _build_twitter_rss_sources(rsshub_base)
-        logger.info("📡 Fetching X/Twitter sources (%d accounts via RSSHub)...", len(twitter_rss))
-        twitter_articles = fetch_rss_sources(twitter_rss, hours_lookback=hours_lookback)
-        logger.info("   → %d tweets/posts", len(twitter_articles))
-        all_articles.extend(twitter_articles)
 
     logger.info("📊 Total fetched: %d articles", len(all_articles))
 
@@ -258,11 +233,6 @@ def _parse_args() -> argparse.Namespace:
         help="Publish mode: 'individual' (one post per article) or 'digest' (daily summary)",
     )
     p.add_argument(
-        "--enable-twitter",
-        action="store_true",
-        help="Enable X/Twitter sources via RSSHub (RSSHUB_BASE_URL must be set)",
-    )
-    p.add_argument(
         "--disable-github",
         action="store_true",
         help="Disable GitHub Trending source",
@@ -286,10 +256,6 @@ if __name__ == "__main__":
         publish_mode=(
             args.mode
             or os.environ.get("PUBLISH_MODE", "individual")
-        ),
-        enable_twitter=(
-            args.enable_twitter
-            or os.environ.get("ENABLE_TWITTER", "").lower() == "true"
         ),
         enable_github=not args.disable_github,
     )
