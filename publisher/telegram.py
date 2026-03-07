@@ -149,44 +149,44 @@ class TelegramPublisher:
 
     def publish_digest(self, articles: list[dict]) -> int:
         """
-        日报合集模式：先发一条横幅，再分组发文章列表。
-        每组 5 篇，避免超出消息长度限制。
+        日报合集模式：所有文章合并为一条消息发送。
+        格式：日期标题 + 编号列表，每条含标题、一句摘要、来源链接。
+        Telegram 单条上限 4096 字符，12 篇约 2000 字符，安全可容纳 15 篇。
         """
         if not articles:
             return 0
 
-        # 发横幅
-        header = self.format_daily_header(datetime.now(), len(articles))
-        self._send(header)
-        time.sleep(2)
+        date_str = datetime.now().strftime("%Y年%m月%d日")
+        lines = [
+            f"🗞 <b>AgenticNow · {date_str}</b>  精选 {len(articles)} 篇",
+            "━━━━━━━━━━━━━━━━━━━━",
+            "",
+        ]
 
-        # 分组发文章摘要（每组5篇）
-        published = 0
-        CHUNK = 5
-        for i in range(0, len(articles), CHUNK):
-            chunk = articles[i : i + CHUNK]
-            lines = []
-            for j, art in enumerate(chunk, i + 1):
-                title_zh = art.get("title_zh") or art.get("title", "")
-                summary_zh = art.get("summary_zh", "")
-                url = art.get("url", "")
-                source = art.get("source_name", "")
-                emoji = self._get_emoji(art.get("category", ""))
+        for j, art in enumerate(articles, 1):
+            title_zh  = _escape_html(art.get("title_zh") or art.get("title", ""))
+            summary_zh = _escape_html(art.get("summary_zh", ""))
+            url        = art.get("url", "")
+            source     = _escape_html(art.get("source_name", ""))
+            emoji      = self._get_emoji(art.get("category", ""))
 
-                item = (
-                    f"{emoji} <b>{j}. {_escape_html(title_zh)}</b>\n"
-                    f"{_escape_html(summary_zh[:80])}...\n"
-                    f'🔗 <a href="{url}">{_escape_html(source)}</a>'
-                )
-                lines.append(item)
+            # 摘要截断到 80 字，保证单条消息不超限
+            summary_short = summary_zh[:80] + ("…" if len(summary_zh) > 80 else "")
 
-            text = "\n\n".join(lines)
-            result = self._send(text)
-            if result.get("ok"):
-                published += len(chunk)
-            time.sleep(3)
+            lines.append(f"{emoji} <b>{j}. {title_zh}</b>")
+            if summary_short:
+                lines.append(summary_short)
+            lines.append(f'📌 <a href="{url}">{source}</a>')
+            lines.append("")
 
-        return published
+        text = "\n".join(lines).strip()
+
+        # 超出 4096 时截断（保险机制，正常不会触发）
+        if len(text) > MAX_MESSAGE_LENGTH:
+            text = text[:MAX_MESSAGE_LENGTH - 10] + "\n…"
+
+        result = self._send(text)
+        return len(articles) if result.get("ok") else 0
 
     def publish_articles(
         self, articles: list[dict], mode: str = "individual"

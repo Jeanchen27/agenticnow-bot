@@ -2,8 +2,7 @@ name: AgenticNow Daily Bot
 
 on:
   # 定时触发由 cron-job.org 负责，精确到分钟
-  # 晨推：北京时间 08:00（UTC 00:00）
-  # 晚推：北京时间 20:00（UTC 12:00）
+  # 每日一次：北京时间 12:00（UTC 04:00）
 
   # 手动 / 外部触发（cron-job.org 调用此接口）
   workflow_dispatch:
@@ -17,18 +16,18 @@ on:
           - 'true'
           - 'false'
       max_articles:
-        description: '最多推送文章数（默认按时段自动）'
+        description: '最多推送文章数（默认 12）'
         required: false
         default: ''
         type: string
       publish_mode:
         description: '推送模式'
         required: false
-        default: 'individual'
+        default: 'digest'
         type: choice
         options:
-          - 'individual'
           - 'digest'
+          - 'individual'
 
 permissions:
   contents: write   # 用于提交 seen_urls.json
@@ -55,31 +54,12 @@ jobs:
       - name: Check RSS source health (non-blocking)
         run: python scripts/check_sources.py || echo "⚠️ Some sources failed health check, continuing anyway."
 
-      - name: Determine run session (morning / evening)
-        id: session
-        run: |
-          HOUR=$(date -u +%H)
-          # 00:00 UTC = 晨推（08:00 BJT）：lookback 48h，最多 8 篇
-          # 12:00 UTC = 晚推（20:00 BJT）：lookback 48h，最多 6 篇
-          # 48h 窗口确保每周/双周 Newsletter 能被捕获，去重系统防止重复推送
-          if [ "$HOUR" -lt 6 ]; then
-            echo "session=morning" >> $GITHUB_OUTPUT
-            echo "max_articles=8"  >> $GITHUB_OUTPUT
-            echo "hours_lookback=48" >> $GITHUB_OUTPUT
-          else
-            echo "session=evening" >> $GITHUB_OUTPUT
-            echo "max_articles=6"  >> $GITHUB_OUTPUT
-            echo "hours_lookback=48" >> $GITHUB_OUTPUT
-          fi
-
       - name: Run AgenticNow Bot
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
-          RSSHUB_BASE_URL: ${{ secrets.RSSHUB_BASE_URL }}
-          ENABLE_TWITTER: ${{ secrets.ENABLE_TWITTER }}
-          PUBLISH_MODE: ${{ github.event.inputs.publish_mode || 'individual' }}
+          PUBLISH_MODE: ${{ github.event.inputs.publish_mode || 'digest' }}
         run: |
           ARGS=""
 
@@ -88,28 +68,20 @@ jobs:
             ARGS="$ARGS --dry-run"
           fi
 
-          # 文章数：手动触发可覆盖，否则按时段自动
+          # 文章数：手动触发可覆盖，否则默认 12 篇
           MANUAL_MAX="${{ github.event.inputs.max_articles }}"
           if [ -n "$MANUAL_MAX" ]; then
             ARGS="$ARGS --max-articles $MANUAL_MAX"
           else
-            ARGS="$ARGS --max-articles ${{ steps.session.outputs.max_articles }}"
+            ARGS="$ARGS --max-articles 12"
           fi
 
-          # Lookback 窗口（按时段自动）
-          ARGS="$ARGS --hours-lookback ${{ steps.session.outputs.hours_lookback }}"
+          # Lookback 窗口：48h 确保周刊/双周刊能被捕获，去重防止重复推送
+          ARGS="$ARGS --hours-lookback 48"
 
           # 推送模式
-          if [ -n "${{ github.event.inputs.publish_mode }}" ]; then
-            ARGS="$ARGS --mode ${{ github.event.inputs.publish_mode }}"
-          fi
+          ARGS="$ARGS --mode ${{ github.event.inputs.publish_mode || 'digest' }}"
 
-          # 启用 Twitter（若环境变量设置）
-          if [ "$ENABLE_TWITTER" = "true" ]; then
-            ARGS="$ARGS --enable-twitter"
-          fi
-
-          echo "=== Session: ${{ steps.session.outputs.session }} ==="
           echo "Running: python main.py $ARGS"
           python main.py $ARGS
 

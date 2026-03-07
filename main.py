@@ -255,7 +255,7 @@ if __name__ == "__main__":
         ),
         publish_mode=(
             args.mode
-            or os.environ.get("PUBLISH_MODE", "individual")
+            or os.environ.get("PUBLISH_MODE", "digest")
         ),
         enable_github=not args.disable_github,
     )
