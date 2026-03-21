@@ -96,15 +96,58 @@ def _preselect(articles: list[dict], n: int) -> list[dict]:
     return ranked[:n]
 
 
+def _is_similar_title(title_a: str, title_b: str) -> bool:
+    """
+    判断两个标题是否描述同一新闻。
+    使用简单的词集重叠率（Jaccard 系数），阈值 0.5。
+    """
+    if not title_a or not title_b:
+        return False
+    # 统一小写，取中文标题或英文标题
+    words_a = set(title_a.lower().split())
+    words_b = set(title_b.lower().split())
+    if not words_a or not words_b:
+        return False
+    intersection = words_a & words_b
+    union = words_a | words_b
+    return len(intersection) / len(union) >= 0.5
+
+
+def _dedup_by_title(articles: list[dict]) -> list[dict]:
+    """
+    标题级去重：同一新闻被多个信源报道时，只保留 relevance 最高的那条。
+    """
+    result: list[dict] = []
+    for art in articles:
+        title = art.get("title_zh") or art.get("title", "")
+        is_dup = False
+        for existing in result:
+            existing_title = existing.get("title_zh") or existing.get("title", "")
+            if _is_similar_title(title, existing_title):
+                # 保留评分更高的那条
+                if art.get("relevance", 5) > existing.get("relevance", 5):
+                    result.remove(existing)
+                    result.append(art)
+                is_dup = True
+                break
+        if not is_dup:
+            result.append(art)
+    return result
+
+
 def _apply_quotas(articles: list[dict], max_articles: int) -> list[dict]:
     """
     按来源配额选取最终推送文章。
 
     策略：
+    0. 先做标题级去重（同一新闻多源报道只保留一条）
     1. 先为每种类型按配额取保底名额（按 relevance 排序取 top N）
     2. 剩余名额从所有未选文章中按 relevance 排序填满
     3. 最终按 类型分组顺序 + relevance 排序输出
     """
+    # 0. 标题去重
+    articles = _dedup_by_title(articles)
+
     # 按类型分组
     by_type: dict[str, list[dict]] = {}
     for art in articles:
