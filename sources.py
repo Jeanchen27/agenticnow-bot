@@ -1,27 +1,28 @@
 """
-@AgenticNow 信源配置 v6
-50 个精选信源，覆盖 AI Agent / Agentic Web / Agentic Economy / Agentic Commerce / Agentic Payment / OpenClaw
+@AgenticNow 信源配置 v7
+40 个精选信源，覆盖 AI Agent / Agentic Web / Agentic Economy / Agentic Commerce / Agentic Payment / OpenClaw
 """
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 关键词预过滤（仅对高产量综合媒体启用，节省 Claude API 成本）
+# 关键词预过滤（对 Decrypt / Bankless 等高产量媒体启用，只保留 AI Agent 相关）
 # ─────────────────────────────────────────────────────────────────────────────
 KEYWORD_FILTER_TERMS = [
     "ai", "agent", "agentic", "autonomous", "llm", "gpt", "claude",
-    "payment", "pay", "wallet", "stablecoin", "defi", "fintech",
-    "mcp", "commerce", "transaction", "a2a", "machine learning",
-    "crypto ai", "web3 ai", "smart contract",
+    "openai", "anthropic", "google ai", "deepmind",
+    "mcp", "a2a", "machine learning", "neural", "transformer",
+    "ai payment", "ai wallet", "ai commerce", "ai trading",
+    "smart contract ai", "defi ai", "crypto ai", "web3 ai",
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
-# RSS / ATOM / PODCAST 信源（共 50 个）
+# RSS / ATOM / PODCAST 信源（共 40 个）
 # source_type: "newsletter" | "podcast" | "rss"
 # keyword_filter: True = 抓取后先用关键词过滤再送入 Claude
 # ─────────────────────────────────────────────────────────────────────────────
 RSS_SOURCES: list[dict] = [
 
     # ══════════════════════════════════════════════════════════════════════════
-    # AI Agent（18 个）
+    # AI Agent（16 个）
     # ══════════════════════════════════════════════════════════════════════════
     {
         "id": "latent_space",
@@ -151,25 +152,9 @@ RSS_SOURCES: list[dict] = [
         "category": "AI Agent",
         "source_type": "podcast",
     },
-    {
-        "id": "twiml_ai",
-        "name": "TWIML AI Podcast",
-        "url": "https://twimlai.com",
-        "rss": "https://feeds.megaphone.fm/MLN2155636147",
-        "category": "AI Agent",
-        "source_type": "podcast",
-    },
-    {
-        "id": "practical_ai",
-        "name": "Practical AI (Changelog)",
-        "url": "https://changelog.com/practicalai",
-        "rss": "https://changelog.com/practicalai/feed",
-        "category": "AI Agent",
-        "source_type": "podcast",
-    },
 
     # ══════════════════════════════════════════════════════════════════════════
-    # Agentic Web（7 个）
+    # Agentic Web（5 个）
     # ══════════════════════════════════════════════════════════════════════════
     {
         "id": "platformer",
@@ -184,14 +169,6 @@ RSS_SOURCES: list[dict] = [
         "name": "Last Week in AI",
         "url": "https://lastweekin.ai",
         "rss": "https://lastweekin.ai/feed",
-        "category": "Agentic Web",
-        "source_type": "newsletter",
-    },
-    {
-        "id": "hackernoon_ai",
-        "name": "HackerNoon · AI Agents",
-        "url": "https://hackernoon.com/tagged/ai-agents",
-        "rss": "https://hackernoon.com/tagged/ai-agents/feed",
         "category": "Agentic Web",
         "source_type": "newsletter",
     },
@@ -219,31 +196,15 @@ RSS_SOURCES: list[dict] = [
         "category": "Agentic Web",
         "source_type": "newsletter",
     },
-    {
-        "id": "ai_daily_brief",
-        "name": "AI Daily Brief",
-        "url": "https://www.aidailybriefing.com",
-        "rss": "https://anchor.fm/s/f7cac464/podcast/rss",
-        "category": "Agentic Web",
-        "source_type": "podcast",
-    },
 
     # ══════════════════════════════════════════════════════════════════════════
-    # Agentic Economy（7 个）
+    # Agentic Economy（6 个）
     # ══════════════════════════════════════════════════════════════════════════
     {
         "id": "a16z_crypto",
         "name": "a16z crypto",
         "url": "https://a16zcrypto.substack.com",
         "rss": "https://a16zcrypto.substack.com/feed",
-        "category": "Agentic Economy",
-        "source_type": "newsletter",
-    },
-    {
-        "id": "messari",
-        "name": "Messari",
-        "url": "https://messari.io",
-        "rss": "https://messari.io/rss",
         "category": "Agentic Economy",
         "source_type": "newsletter",
     },
@@ -289,7 +250,7 @@ RSS_SOURCES: list[dict] = [
     },
 
     # ══════════════════════════════════════════════════════════════════════════
-    # Agentic Commerce（6 个）
+    # Agentic Commerce（5 个）
     # ══════════════════════════════════════════════════════════════════════════
     {
         "id": "defi0xjeff",
@@ -314,23 +275,6 @@ RSS_SOURCES: list[dict] = [
         "rss": "https://www.bankless.com/rss/feed",
         "category": "Agentic Commerce",
         "source_type": "newsletter",
-    },
-    {
-        "id": "the_defiant",
-        "name": "The Defiant",
-        "url": "https://thedefiant.io",
-        "rss": "https://thedefiant.io/feed",
-        "category": "Agentic Commerce",
-        "source_type": "newsletter",
-        "keyword_filter": True,
-    },
-    {
-        "id": "coindesk",
-        "name": "CoinDesk",
-        "url": "https://www.coindesk.com",
-        "rss": "https://www.coindesk.com/arc/outboundfeeds/rss/",
-        "category": "Agentic Commerce",
-        "source_type": "newsletter",
         "keyword_filter": True,
     },
     {
@@ -342,9 +286,17 @@ RSS_SOURCES: list[dict] = [
         "source_type": "newsletter",
         "keyword_filter": True,
     },
+    {
+        "id": "practical_ai",
+        "name": "Practical AI (Changelog)",
+        "url": "https://changelog.com/practicalai",
+        "rss": "https://changelog.com/practicalai/feed",
+        "category": "Agentic Commerce",
+        "source_type": "podcast",
+    },
 
     # ══════════════════════════════════════════════════════════════════════════
-    # Agentic Payment（7 个）
+    # Agentic Payment（5 个）
     # ══════════════════════════════════════════════════════════════════════════
     {
         "id": "stripe_blog",
@@ -355,34 +307,10 @@ RSS_SOURCES: list[dict] = [
         "source_type": "newsletter",
     },
     {
-        "id": "payments_dive",
-        "name": "Payments Dive",
-        "url": "https://www.paymentsdive.com",
-        "rss": "https://www.paymentsdive.com/feeds/news/",
-        "category": "Agentic Payment",
-        "source_type": "newsletter",
-    },
-    {
         "id": "linas_fintech",
         "name": "Linas' Newsletter (Fintech)",
         "url": "https://linas.substack.com",
         "rss": "https://linas.substack.com/feed",
-        "category": "Agentic Payment",
-        "source_type": "newsletter",
-    },
-    {
-        "id": "the_rundown_ai",
-        "name": "The Rundown AI",
-        "url": "https://therundownai.com",
-        "rss": "https://rss.beehiiv.com/feeds/2R3C6Bt5wj.xml",
-        "category": "Agentic Payment",
-        "source_type": "newsletter",
-    },
-    {
-        "id": "the_block",
-        "name": "The Block",
-        "url": "https://www.theblock.co",
-        "rss": "https://www.theblock.co/rss.xml",
         "category": "Agentic Payment",
         "source_type": "newsletter",
     },
@@ -437,18 +365,6 @@ RSS_SOURCES: list[dict] = [
         "rss": "https://xkcd.com/rss.xml",
         "category": "OpenClaw",
         "source_type": "rss",
-    },
-
-    # ══════════════════════════════════════════════════════════════════════════
-    # 补充（2 个 — 凑满 50）
-    # ══════════════════════════════════════════════════════════════════════════
-    {
-        "id": "lex_fridman",
-        "name": "Lex Fridman Podcast",
-        "url": "https://lexfridman.com",
-        "rss": "https://lexfridman.com/feed/podcast/",
-        "category": "AI Agent",
-        "source_type": "podcast",
     },
 
 ]
