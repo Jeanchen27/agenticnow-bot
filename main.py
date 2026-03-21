@@ -2,14 +2,14 @@
 """
 AgenticNow Daily Bot
 ━━━━━━━━━━━━━━━━━━━
-每日自动抓取 RSS / Reddit / GitHub 信源，
+每日自动抓取 RSS / Podcast / Reddit / GitHub 信源，
 通过 Claude API 生成中文标题+摘要，
 推送至 @AgenticNow Telegram 频道。
 
 用法:
     python main.py                     # 正式运行
     python main.py --dry-run           # 预览模式（不推送 Telegram）
-    python main.py --max-articles 8    # 自定义最多推送文章数
+    python main.py --max-articles 12   # 自定义最多推送文章数
     python main.py --mode digest       # 每日合集模式
 """
 
@@ -41,6 +41,16 @@ from publisher.telegram import TelegramPublisher
 from storage.dedup import URLStore
 
 
+# ─── 来源配额配置 ─────────────────────────────────────────────────────────────
+# 保底名额：确保每种来源类型在最终推送中有最少占比
+SOURCE_QUOTAS = {
+    "newsletter": 4,   # 至少 4 条 Newsletter
+    "podcast":    2,   # 至少 2 条 Podcast
+    "github":     1,   # 至少 1 个 GitHub 项目
+    # reddit 不设保底，填满剩余名额
+}
+
+
 # ─── 工具函数 ─────────────────────────────────────────────────────────────────
 
 def _score_article(article: dict) -> float:
@@ -49,9 +59,16 @@ def _score_article(article: dict) -> float:
     分数越高 = 优先处理。
     """
     score = 0.0
+    article_type = article.get("type", "rss")
+
+    # Newsletter / Podcast 基础加分（确保不被 Reddit 数量淹没）
+    if article_type in ("newsletter", "podcast"):
+        score += 5.0
+    elif article_type == "github":
+        score += 3.0
 
     # Reddit 热度加分
-    if article.get("type") == "reddit":
+    if article_type == "reddit":
         score += min(article.get("score", 0) / 50, 5.0)
 
     # 新鲜度加分（越新越高）
@@ -79,29 +96,90 @@ def _preselect(articles: list[dict], n: int) -> list[dict]:
     return ranked[:n]
 
 
+def _apply_quotas(articles: list[dict], max_articles: int) -> list[dict]:
+    """
+    按来源配额选取最终推送文章。
+
+    策略：
+    1. 先为每种类型按配额取保底名额（按 relevance 排序取 top N）
+    2. 剩余名额从所有未选文章中按 relevance 排序填满
+    3. 最终按 类型分组顺序 + relevance 排序输出
+    """
+    # 按类型分组
+    by_type: dict[str, list[dict]] = {}
+    for art in articles:
+        t = art.get("type", "rss")
+        by_type.setdefault(t, []).append(art)
+
+    # 每组按 relevance 降序
+    for t in by_type:
+        by_type[t].sort(key=lambda x: x.get("relevance", 5), reverse=True)
+
+    selected: list[dict] = []
+    selected_urls: set[str] = set()
+
+    # 1. 按配额取保底
+    for source_type, quota in SOURCE_QUOTAS.items():
+        candidates = by_type.get(source_type, [])
+        count = 0
+        for art in candidates:
+            if count >= quota:
+                break
+            url = art.get("url", "")
+            if url not in selected_urls:
+                selected.append(art)
+                selected_urls.add(url)
+                count += 1
+
+    # 2. 剩余名额按 relevance 从所有未选文章中填满
+    remaining = max_articles - len(selected)
+    if remaining > 0:
+        all_remaining = sorted(
+            [a for a in articles if a.get("url", "") not in selected_urls],
+            key=lambda x: x.get("relevance", 5),
+            reverse=True,
+        )
+        for art in all_remaining[:remaining]:
+            selected.append(art)
+            selected_urls.add(art.get("url", ""))
+
+    # 3. 按类型分组排序：newsletter → podcast → reddit → github
+    type_order = {"newsletter": 0, "podcast": 1, "rss": 2, "reddit": 3, "github": 4}
+    selected.sort(
+        key=lambda x: (
+            type_order.get(x.get("type", "rss"), 9),
+            -x.get("relevance", 5),
+        )
+    )
+
+    return selected[:max_articles]
+
+
 # ─── 主流程 ───────────────────────────────────────────────────────────────────
 
 def run(
     dry_run: bool = False,
     max_articles: int = 12,
-    hours_lookback: int = 48,
+    hours_lookback_rss: int = 168,
+    hours_lookback_reddit: int = 48,
     publish_mode: str = "individual",
     enable_github: bool = True,
 ) -> None:
     """
     AgenticNow Bot 主流程。
 
-    1. 抓取所有信源（RSS + Reddit + GitHub）
+    1. 抓取所有信源（RSS/Podcast + Reddit + GitHub）
     2. 过滤已发送 URL
     3. 预选候选文章
     4. Claude API 生成中文摘要
-    5. 按相关度排序，取 top N
-    6. 推送至 Telegram
+    5. 按配额 + 相关度排序，取 top N
+    6. 推送至 Telegram（按 Newsletter → Podcast → Reddit 分组）
     7. 标记 URL 为已发送并保存
     """
     logger.info("=" * 56)
     logger.info("  🤖  AgenticNow Bot  |  %s", datetime.now().strftime("%Y-%m-%d %H:%M"))
-    logger.info("  Max articles : %d  |  Lookback : %dh", max_articles, hours_lookback)
+    logger.info("  Max articles : %d  |  RSS lookback : %dh  |  Reddit lookback : %dh",
+                max_articles, hours_lookback_rss, hours_lookback_reddit)
     logger.info("  Mode : %s  |  %s", publish_mode, "DRY RUN" if dry_run else "LIVE")
     logger.info("=" * 56)
 
@@ -123,15 +201,15 @@ def run(
     # ── 抓取阶段 ──────────────────────────────────────────────────────────────
     all_articles: list[dict] = []
 
-    # 1. RSS（主力信源）
-    logger.info("📡 Fetching RSS sources (%d sources)...", len(RSS_SOURCES))
-    rss_articles = fetch_rss_sources(RSS_SOURCES, hours_lookback=hours_lookback)
+    # 1. RSS + Podcast（主力信源，7天窗口捕获周刊）
+    logger.info("📡 Fetching RSS/Podcast sources (%d sources)...", len(RSS_SOURCES))
+    rss_articles = fetch_rss_sources(RSS_SOURCES, hours_lookback=hours_lookback_rss)
     logger.info("   → %d articles", len(rss_articles))
     all_articles.extend(rss_articles)
 
-    # 2. Reddit
+    # 2. Reddit（48h 窗口，社区热点）
     logger.info("📡 Fetching Reddit sources (%d subreddits)...", len(REDDIT_SOURCES))
-    reddit_articles = fetch_reddit_sources(REDDIT_SOURCES, hours_lookback=hours_lookback)
+    reddit_articles = fetch_reddit_sources(REDDIT_SOURCES, hours_lookback=hours_lookback_reddit)
     logger.info("   → %d posts", len(reddit_articles))
     all_articles.extend(reddit_articles)
 
@@ -151,24 +229,23 @@ def run(
         return
 
     # ── 预选候选文章（2× 目标数量，留给 Claude 评分空间）──────────────────────
-    candidates = _preselect(new_articles, n=max_articles * 2)
+    candidates = _preselect(new_articles, n=max_articles * 3)
     logger.info("🎯 Pre-selected %d candidates for summarization", len(candidates))
 
     # ── Claude 摘要生成 ───────────────────────────────────────────────────────
     logger.info("🧠 Generating Chinese summaries via Claude API...")
     enriched = summarize_articles(candidates, api_key=anthropic_api_key)
 
-    # ── 最终排序：按 Claude 相关度评分取 Top N ────────────────────────────────
-    final_articles = sorted(enriched, key=lambda x: x.get("relevance", 5), reverse=True)[
-        :max_articles
-    ]
+    # ── 按配额 + 相关度选取最终文章 ──────────────────────────────────────────
+    final_articles = _apply_quotas(enriched, max_articles)
 
     logger.info("📋 Final selection: %d articles", len(final_articles))
     for i, a in enumerate(final_articles, 1):
         title = a.get("title_zh") or a.get("title", "")
         logger.info(
-            "   %d. [%s/10] %s",
+            "   %d. [%s] [%s/10] %s",
             i,
+            a.get("type", "?"),
             a.get("relevance", "?"),
             title[:55],
         )
@@ -178,9 +255,12 @@ def run(
         logger.info("\n🔍 DRY RUN — 消息预览：")
         logger.info("=" * 56)
         dummy = TelegramPublisher("dummy_token", "@AgenticNow")
-        for article in final_articles:
-            print(dummy.format_article(article))
-            print("─" * 40)
+        if publish_mode == "digest":
+            print(dummy.format_digest(final_articles))
+        else:
+            for article in final_articles:
+                print(dummy.format_article(article))
+                print("─" * 40)
         return
 
     publisher = TelegramPublisher(telegram_token, telegram_channel)
@@ -224,7 +304,7 @@ def _parse_args() -> argparse.Namespace:
         type=int,
         default=None,
         metavar="H",
-        help="Override lookback window in hours (default: HOURS_LOOKBACK env or 48)",
+        help="Override RSS lookback window in hours (default: 168 = 7 days)",
     )
     p.add_argument(
         "--mode",
@@ -249,10 +329,11 @@ if __name__ == "__main__":
             args.max_articles
             or int(os.environ.get("MAX_ARTICLES_PER_RUN", 12))
         ),
-        hours_lookback=(
+        hours_lookback_rss=(
             args.hours_lookback
-            or int(os.environ.get("HOURS_LOOKBACK", 48))
+            or int(os.environ.get("HOURS_LOOKBACK_RSS", 168))
         ),
+        hours_lookback_reddit=int(os.environ.get("HOURS_LOOKBACK_REDDIT", 48)),
         publish_mode=(
             args.mode
             or os.environ.get("PUBLISH_MODE", "digest")

@@ -16,7 +16,7 @@ on:
           - 'true'
           - 'false'
       max_articles:
-        description: '最多推送文章数（默认 12）'
+        description: '最多推送文章数（默认 12，范围 10-15）'
         required: false
         default: ''
         type: string
@@ -76,8 +76,9 @@ jobs:
             ARGS="$ARGS --max-articles 12"
           fi
 
-          # Lookback 窗口：48h 确保周刊/双周刊能被捕获，去重防止重复推送
-          ARGS="$ARGS --hours-lookback 48"
+          # RSS Lookback 窗口：168h（7天）确保周刊/双周刊能被捕获，去重防止重复推送
+          # Reddit 单独使用 48h 窗口（在 main.py 中硬编码）
+          ARGS="$ARGS --hours-lookback 168"
 
           # 推送模式
           ARGS="$ARGS --mode ${{ github.event.inputs.publish_mode || 'digest' }}"

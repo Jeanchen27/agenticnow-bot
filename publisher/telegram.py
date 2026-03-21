@@ -1,6 +1,7 @@
 """
 Telegram 频道推送器
 支持「单篇推送」和「每日摘要」两种模式
+摘要模式按 Newsletter → Podcast → Reddit/GitHub 分组排列
 """
 
 import logging
@@ -9,12 +10,21 @@ from datetime import datetime
 
 import httpx
 
-from sources import CATEGORY_EMOJI
+from sources import CATEGORY_EMOJI, SOURCE_TYPE_EMOJI
 
 logger = logging.getLogger(__name__)
 
 TELEGRAM_API = "https://api.telegram.org/bot{token}"
 MAX_MESSAGE_LENGTH = 4096  # Telegram 单条消息最大字符数
+
+# 分组显示顺序与标题
+SOURCE_TYPE_SECTIONS = [
+    ("newsletter", "📬 Newsletter / 博客"),
+    ("podcast",    "🎙️ 播客精选"),
+    ("rss",        "📡 RSS"),
+    ("reddit",     "💬 社区热帖"),
+    ("github",     "⭐ GitHub Trending"),
+]
 
 
 class TelegramPublisher:
@@ -72,14 +82,73 @@ class TelegramPublisher:
 
         return "\n".join(parts)
 
-    def format_daily_header(self, date: datetime, count: int) -> str:
-        """每日摘要开头横幅。"""
-        date_str = date.strftime("%Y年%m月%d日")
-        return (
-            f"🗞️ <b>AgenticNow · 今日精选</b>\n"
-            f"{date_str} | 精选 {count} 篇\n"
-            f"━━━━━━━━━━━━━━━━━━━━"
-        )
+    def format_digest(self, articles: list[dict]) -> str:
+        """
+        将文章列表格式化为按来源类型分组的日报合集。
+
+        格式：
+        🗞 AgenticNow · 2026年03月21日  精选 12 篇
+        ━━━━━━━━━━━━━━━━━━━━
+
+        📬 Newsletter / 博客
+        🤖 1. 标题...
+           摘要...
+           📌 来源
+
+        🎙️ 播客精选
+        🤖 5. 标题...
+        ...
+        """
+        if not articles:
+            return ""
+
+        date_str = datetime.now().strftime("%Y年%m月%d日")
+        lines = [
+            f"🗞 <b>AgenticNow · {date_str}</b>  精选 {len(articles)} 篇",
+            "━━━━━━━━━━━━━━━━━━━━",
+            "",
+        ]
+
+        # 按类型分组
+        by_type: dict[str, list[tuple[int, dict]]] = {}
+        for idx, art in enumerate(articles, 1):
+            t = art.get("type", "rss")
+            by_type.setdefault(t, []).append((idx, art))
+
+        # 按预定义顺序输出各分组
+        global_idx = 0
+        for source_type, section_title in SOURCE_TYPE_SECTIONS:
+            group = by_type.get(source_type, [])
+            if not group:
+                continue
+
+            lines.append(f"<b>{section_title}</b>")
+            lines.append("")
+
+            for _, art in group:
+                global_idx += 1
+                title_zh = _escape_html(art.get("title_zh") or art.get("title", ""))
+                summary_zh = _escape_html(art.get("summary_zh", ""))
+                url = art.get("url", "")
+                source = _escape_html(art.get("source_name", ""))
+                emoji = self._get_emoji(art.get("category", ""))
+
+                # 摘要截断到 80 字
+                summary_short = summary_zh[:80] + ("…" if len(summary_zh) > 80 else "")
+
+                lines.append(f"{emoji} <b>{global_idx}. {title_zh}</b>")
+                if summary_short:
+                    lines.append(summary_short)
+                lines.append(f'📌 <a href="{url}">{source}</a>')
+                lines.append("")
+
+        text = "\n".join(lines).strip()
+
+        # 超出 4096 时截断（保险机制）
+        if len(text) > MAX_MESSAGE_LENGTH:
+            text = text[:MAX_MESSAGE_LENGTH - 10] + "\n…"
+
+        return text
 
     # ─── 发送 ─────────────────────────────────────────────────────────────────
 
@@ -149,42 +218,12 @@ class TelegramPublisher:
 
     def publish_digest(self, articles: list[dict]) -> int:
         """
-        日报合集模式：所有文章合并为一条消息发送。
-        格式：日期标题 + 编号列表，每条含标题、一句摘要、来源链接。
-        Telegram 单条上限 4096 字符，12 篇约 2000 字符，安全可容纳 15 篇。
+        日报合集模式：所有文章合并为一条消息发送（按类型分组）。
         """
         if not articles:
             return 0
 
-        date_str = datetime.now().strftime("%Y年%m月%d日")
-        lines = [
-            f"🗞 <b>AgenticNow · {date_str}</b>  精选 {len(articles)} 篇",
-            "━━━━━━━━━━━━━━━━━━━━",
-            "",
-        ]
-
-        for j, art in enumerate(articles, 1):
-            title_zh  = _escape_html(art.get("title_zh") or art.get("title", ""))
-            summary_zh = _escape_html(art.get("summary_zh", ""))
-            url        = art.get("url", "")
-            source     = _escape_html(art.get("source_name", ""))
-            emoji      = self._get_emoji(art.get("category", ""))
-
-            # 摘要截断到 80 字，保证单条消息不超限
-            summary_short = summary_zh[:80] + ("…" if len(summary_zh) > 80 else "")
-
-            lines.append(f"{emoji} <b>{j}. {title_zh}</b>")
-            if summary_short:
-                lines.append(summary_short)
-            lines.append(f'📌 <a href="{url}">{source}</a>')
-            lines.append("")
-
-        text = "\n".join(lines).strip()
-
-        # 超出 4096 时截断（保险机制，正常不会触发）
-        if len(text) > MAX_MESSAGE_LENGTH:
-            text = text[:MAX_MESSAGE_LENGTH - 10] + "\n…"
-
+        text = self.format_digest(articles)
         result = self._send(text)
         return len(articles) if result.get("ok") else 0
 

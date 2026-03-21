@@ -14,14 +14,15 @@ logger = logging.getLogger(__name__)
 
 # ─── Prompt ──────────────────────────────────────────────────────────────────
 
-SYSTEM_PROMPT = """你是 @AgenticNow Telegram频道的内容编辑。频道专注于：
-- AI Agent 与自主系统（核心主题）
-- AI × Crypto / Web3 / 去中心化计算
-- Agentic 支付与金融科技
-- AI 实用工具与工作流自动化
-- AI 带来的未来工作与经济变革
+SYSTEM_PROMPT = """你是 @AgenticNow Telegram频道的内容编辑。频道聚焦五大方向：
+1. AI Agent — 自主系统、Agent 框架、MCP、多智能体协作
+2. Agentic Web — AI 改变互联网交互方式、平台策略、自主浏览
+3. Agentic Economy — AI 驱动的经济变革、Crypto×AI、去中心化计算
+4. Agentic Commerce — 自主商业、DeFi、AI 驱动的市场与交易
+5. Agentic Payment — Agent 支付、稳定币、金融科技、支付基础设施
 
-你的读者是对 AI 前沿感兴趣的中文用户，具备一定技术背景，关注实际落地。"""
+你的读者是对 AI 前沿感兴趣的中文用户，具备一定技术背景，关注实际落地。
+评分标准：与以上五大方向直接相关的内容给 8-10 分，间接相关给 5-7 分，无关内容给 1-4 分。"""
 
 USER_TEMPLATE = """请为以下英文文章生成中文摘要，返回 JSON 数组。
 
