@@ -10,6 +10,13 @@ RSS_SOURCES: list[dict] = [
 
     # ── OpenClaw 核心生态 ──────────────────────────────────────────────────
     {
+        "id": "xkcd",
+        "name": "xkcd",
+        "url": "https://xkcd.com",
+        "rss": "https://xkcd.com/rss.xml",
+        "category": "AI Dev",
+    },
+    {
         "id": "steipete_blog",
         "name": "steipete.me Blog (Peter Steinberger)",
         "url": "https://steipete.me",
@@ -64,7 +71,7 @@ RSS_SOURCES: list[dict] = [
         "id": "one_useful_thing",
         "name": "One Useful Thing (Ethan Mollick)",
         "url": "https://oneusefulthing.substack.com",
-        "rss": "https://oneusefulthing.substack.com/feed",
+        "rss": "https://www.oneusefulthing.org/feed",
         "category": "AI Agent",
     },
     {
@@ -78,7 +85,7 @@ RSS_SOURCES: list[dict] = [
         "id": "platformer",
         "name": "Platformer (Casey Newton)",
         "url": "https://www.platformer.news",
-        "rss": "https://www.platformer.news/feed",
+        "rss": "https://www.platformer.news/rss/",
         "category": "AI Agent",
     },
     {
