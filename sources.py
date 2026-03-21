@@ -7,11 +7,22 @@
 # 关键词预过滤（对 Decrypt / Bankless 等高产量媒体启用，只保留 AI Agent 相关）
 # ─────────────────────────────────────────────────────────────────────────────
 KEYWORD_FILTER_TERMS = [
-    "ai", "agent", "agentic", "autonomous", "llm", "gpt", "claude",
-    "openai", "anthropic", "google ai", "deepmind",
-    "mcp", "a2a", "machine learning", "neural", "transformer",
-    "ai payment", "ai wallet", "ai commerce", "ai trading",
-    "smart contract ai", "defi ai", "crypto ai", "web3 ai",
+    # 短词（≤3字符）→ 词边界匹配，防止误命中
+    "ai", "llm", "gpt", "mcp", "a2a",
+    # 长词 → 子串匹配
+    "agent", "agentic", "autonomous", "anthropic", "openai",
+    "deepmind", "gemini", "copilot", "claude", "chatgpt",
+    "artificial intelligence", "machine learning", "neural network",
+    "large language model", "generative ai", "foundation model",
+    "transformer model", "rag", "fine-tun",
+]
+
+# 多词精确短语（只对关键词过滤信源生效）
+KEYWORD_FILTER_EXACT = [
+    "ai agent", "ai-powered", "ai payment", "ai wallet",
+    "ai commerce", "ai trading", "defi ai", "crypto ai",
+    "web3 ai", "smart contract ai", "model context protocol",
+    "reasoning model", "language model", "inference engine",
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -276,6 +287,7 @@ RSS_SOURCES: list[dict] = [
         "category": "Agentic Commerce",
         "source_type": "newsletter",
         "keyword_filter": True,
+        "min_relevance": 8,   # 只有明确与 AI/Agent 相关的文章才入选
     },
     {
         "id": "decrypt",
@@ -285,6 +297,7 @@ RSS_SOURCES: list[dict] = [
         "category": "Agentic Commerce",
         "source_type": "newsletter",
         "keyword_filter": True,
+        "min_relevance": 8,   # 只有明确与 AI/Agent 相关的文章才入选
     },
     {
         "id": "practical_ai",

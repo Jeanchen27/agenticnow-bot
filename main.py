@@ -36,6 +36,14 @@ from sources import RSS_SOURCES, REDDIT_SOURCES, GITHUB_TOPICS
 from fetchers.rss import fetch_rss_sources
 from fetchers.reddit import fetch_reddit_sources
 from fetchers.github_trending import fetch_github_trending
+from sources import RSS_SOURCES as _RSS_SOURCES
+
+# 建立 source_id → min_relevance 映射（供最终过滤用）
+_MIN_RELEVANCE_BY_SOURCE: dict[str, int] = {
+    s["id"]: s["min_relevance"]
+    for s in _RSS_SOURCES
+    if "min_relevance" in s
+}
 from processor.summarizer import summarize_articles
 from processor.thread_writer import generate_threads
 from publisher.telegram import TelegramPublisher
@@ -148,6 +156,15 @@ def _apply_quotas(articles: list[dict], max_articles: int) -> list[dict]:
     """
     # 0. 标题去重
     articles = _dedup_by_title(articles)
+
+    # 0b. 对设有 min_relevance 的信源（Bankless/Decrypt）强制过滤低分文章
+    if _MIN_RELEVANCE_BY_SOURCE:
+        articles = [
+            a for a in articles
+            if a.get("relevance", 5) >= _MIN_RELEVANCE_BY_SOURCE.get(
+                a.get("source_id", ""), 0
+            )
+        ]
 
     # 按类型分组
     by_type: dict[str, list[dict]] = {}

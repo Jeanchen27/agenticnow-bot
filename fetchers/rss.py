@@ -56,9 +56,26 @@ def _get_excerpt(entry) -> str:
 
 
 def _matches_keyword_filter(title: str, excerpt: str) -> bool:
-    """检查标题或摘要是否包含预定义关键词（不区分大小写）。"""
+    """
+    检查标题或摘要是否包含 AI/Agent 相关关键词（不区分大小写）。
+    使用词边界匹配，防止 "ai" 误命中 "paid"/"retail" 等无关词。
+    """
+    import re
     text = f"{title} {excerpt}".lower()
-    return any(term in text for term in KEYWORD_FILTER_TERMS)
+    from sources import KEYWORD_FILTER_TERMS, KEYWORD_FILTER_EXACT
+    # 短词（≤3字符）用词边界匹配，长词用子串匹配
+    for term in KEYWORD_FILTER_TERMS:
+        if len(term) <= 3:
+            if re.search(rf"\b{re.escape(term)}\b", text):
+                return True
+        else:
+            if term in text:
+                return True
+    # 精确短语匹配（多词组合，无需词边界）
+    for phrase in KEYWORD_FILTER_EXACT:
+        if phrase in text:
+            return True
+    return False
 
 
 def fetch_single_rss(source: dict, hours_lookback: int = 168) -> list[dict]:
