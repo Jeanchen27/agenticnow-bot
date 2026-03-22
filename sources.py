@@ -44,7 +44,7 @@ KEYWORD_BLOCKLIST = [
 RSS_SOURCES: list[dict] = [
 
     # ══════════════════════════════════════════════════════════════════════════
-    # AI Agent（16 个）
+    # AI Agent（16 个）  # chip_huyen(430d stale)→the_sequence
     # ══════════════════════════════════════════════════════════════════════════
     {
         "id": "latent_space",
@@ -127,10 +127,10 @@ RSS_SOURCES: list[dict] = [
         "source_type": "newsletter",
     },
     {
-        "id": "chip_huyen",
-        "name": "Chip Huyen",
-        "url": "https://huyenchip.com",
-        "rss": "https://huyenchip.com/feed.xml",
+        "id": "the_sequence",
+        "name": "The Sequence",
+        "url": "https://thesequence.substack.com",
+        "rss": "https://thesequence.substack.com/feed",
         "category": "AI Agent",
         "source_type": "newsletter",
     },
@@ -176,7 +176,7 @@ RSS_SOURCES: list[dict] = [
     },
 
     # ══════════════════════════════════════════════════════════════════════════
-    # Agentic Web（5 个）
+    # Agentic Web（5 个）  # hn_ai(0 entries)→openai_news
     # ══════════════════════════════════════════════════════════════════════════
     {
         "id": "platformer",
@@ -195,12 +195,12 @@ RSS_SOURCES: list[dict] = [
         "source_type": "newsletter",
     },
     {
-        "id": "hn_ai",
-        "name": "Hacker News (AI/LLM精选)",
-        "url": "https://news.ycombinator.com",
-        "rss": "https://hnrss.org/frontpage?q=AI+agent+LLM+claude&points=50",
+        "id": "openai_news",
+        "name": "OpenAI News",
+        "url": "https://openai.com/news",
+        "rss": "https://openai.com/news/rss.xml",
         "category": "Agentic Web",
-        "source_type": "rss",
+        "source_type": "newsletter",
     },
     {
         "id": "hard_fork",
@@ -220,7 +220,7 @@ RSS_SOURCES: list[dict] = [
     },
 
     # ══════════════════════════════════════════════════════════════════════════
-    # Agentic Economy（6 个）
+    # Agentic Economy（6 个）  # elad_gil(243d stale)→huggingface_blog
     # ══════════════════════════════════════════════════════════════════════════
     {
         "id": "a16z_crypto",
@@ -247,10 +247,10 @@ RSS_SOURCES: list[dict] = [
         "source_type": "newsletter",
     },
     {
-        "id": "elad_gil",
-        "name": "Elad Gil Blog",
-        "url": "https://blog.eladgil.com",
-        "rss": "https://blog.eladgil.com/feed",
+        "id": "huggingface_blog",
+        "name": "Hugging Face Blog",
+        "url": "https://huggingface.co/blog",
+        "rss": "https://huggingface.co/blog/feed.xml",
         "category": "Agentic Economy",
         "source_type": "newsletter",
     },
@@ -364,13 +364,13 @@ RSS_SOURCES: list[dict] = [
     },
 
     # ══════════════════════════════════════════════════════════════════════════
-    # OpenClaw 生态（3 个）
+    # OpenClaw 生态（3 个）  # steipete(35d stale)→exponential_view
     # ══════════════════════════════════════════════════════════════════════════
     {
-        "id": "steipete_blog",
-        "name": "steipete.me Blog (Peter Steinberger)",
-        "url": "https://steipete.me",
-        "rss": "https://steipete.me/rss.xml",
+        "id": "exponential_view",
+        "name": "Exponential View (Azeem Azhar)",
+        "url": "https://www.exponentialview.co",
+        "rss": "https://www.exponentialview.co/feed",
         "category": "OpenClaw",
         "source_type": "newsletter",
     },
