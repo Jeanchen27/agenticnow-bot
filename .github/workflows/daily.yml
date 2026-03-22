@@ -77,15 +77,17 @@ jobs:
             ARGS="$ARGS --max-articles 12"
           fi
 
-          # RSS Lookback 窗口：168h（7天）确保周刊/双周刊能被捕获，去重防止重复推送
-          # Reddit 单独使用 48h 窗口（在 main.py 中硬编码）
-          ARGS="$ARGS --hours-lookback 168"
+          # RSS Lookback 窗口：168h（7天）确保周刊/双周刊能被捕获
+          ARGS="$ARGS --rss-lookback 168"
 
           # 推送模式
           ARGS="$ARGS --mode ${{ github.event.inputs.publish_mode || 'digest' }}"
 
-          echo "Running: python main.py $ARGS"
-          python main.py $ARGS
+          # 保存过滤报告（每次运行都存入 reports/）
+          ARGS="$ARGS --save-report"
+
+          echo "Running: python pipeline.py $ARGS"
+          python pipeline.py $ARGS
 
       - name: Commit updated seen_urls.json
         # 仅在非预览模式下提交
