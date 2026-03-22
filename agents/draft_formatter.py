@@ -233,11 +233,19 @@ class DraftFormatterAgent(BaseAgent):
     ) -> list[dict]:
         result: list[dict] = []
         for art in articles:
-            title = art.get("title_zh") or art.get("title", "")
+            title_zh = art.get("title_zh", "")
+            title_en = art.get("title", "")
+            title = title_zh or title_en
             is_dup = False
             for existing in result:
-                etitle = existing.get("title_zh") or existing.get("title", "")
-                if _jaccard_similar(title, etitle):
+                etitle_zh = existing.get("title_zh", "")
+                etitle_en = existing.get("title", "")
+                etitle = etitle_zh or etitle_en
+                # 先比中文，再比英文（中文分词较弱时以英文为准）
+                similar = _jaccard_similar(title, etitle)
+                if not similar and title_en and etitle_en:
+                    similar = _jaccard_similar(title_en, etitle_en)
+                if similar:
                     if art.get("relevance", 5) > existing.get("relevance", 5):
                         result.remove(existing)
                         result.append(art)
@@ -246,7 +254,7 @@ class DraftFormatterAgent(BaseAgent):
                         item=title[:60],
                         source=art.get("source_name", "?"),
                         passed=False,
-                        reason=f"标题重复（Jaccard≥0.4），与「{etitle[:40]}」相似",
+                        reason=f"标题重复（Jaccard≥0.5），与「{etitle[:40]}」相似",
                     ))
                     is_dup = True
                     break
@@ -270,11 +278,78 @@ class DraftFormatterAgent(BaseAgent):
 
 # ── 工具函数 ──────────────────────────────────────────────────────────────────
 
-def _jaccard_similar(a: str, b: str, threshold: float = 0.4) -> bool:
+# 停用词表（去除后提高有效词的权重）
+_STOPWORDS = {
+    "the", "a", "an", "is", "are", "was", "were", "be", "been",
+    "in", "at", "for", "to", "of", "on", "as", "by", "with",
+    "and", "or", "but", "not", "that", "this", "its", "it",
+    "how", "why", "what", "which", "who", "now", "has",
+    "have", "had", "will", "would", "can", "could", "from", "up",
+    "into", "about", "than", "more", "its", "their", "our",
+}
+
+# 简单后缀词干列表（降序按长度排列，优先匹配长后缀）
+_SUFFIXES = ("tions", "tion", "ings", "ing", "ies", "ed", "ly",
+             "ers", "er", "able", "ible", "ness", "ful", "less")
+
+
+def _stem(word: str) -> str:
+    """
+    简单词干提取：去除常见后缀，保留词根。
+    额外步骤：去除尾部 'e'，使 'feature'/'featuring' → 'featur'，
+    'release'/'releases' → 'releas'，提高同根词匹配率。
+    """
+    result = word
+    for suffix in _SUFFIXES:
+        if result.endswith(suffix) and len(result) - len(suffix) >= 3:
+            result = result[:-len(suffix)]
+            break
+    else:
+        # 复数 s（不去 ss 结尾）
+        if result.endswith("s") and len(result) > 3 and not result.endswith("ss"):
+            result = result[:-1]
+    # 去除尾部 'e'（如 feature→featur，release→releas）
+    if result.endswith("e") and len(result) > 3:
+        result = result[:-1]
+    return result
+
+
+def _normalize_title(title: str) -> set[str]:
+    """
+    标准化标题为词干集合：
+    1. 小写
+    2. 连字符 → 空格（open-weight → open weight）
+    3. 金额规范化（$500M / $500 million → 500m）
+    4. 去标点
+    5. 分词 → 去停用词 → 词干化
+    """
+    import re
+    text = title.lower()
+    text = text.replace("-", " ")
+    # $500M / $9B / $2.5B
+    text = re.sub(r"\$(\d+\.?\d*)\s*(m|b|k|t)\b", r"\1\2", text)
+    # $500 million / $9 billion
+    text = re.sub(r"\$(\d+\.?\d*)\s*million\b", r"\1m", text)
+    text = re.sub(r"\$(\d+\.?\d*)\s*billion\b", r"\1b", text)
+    # 去标点（保留字母数字）
+    text = re.sub(r"[^\w\s]", " ", text)
+    words = set()
+    for w in text.split():
+        if w not in _STOPWORDS and len(w) > 1:
+            words.add(_stem(w))
+    return words
+
+
+def _jaccard_similar(a: str, b: str, threshold: float = 0.5) -> bool:
+    """
+    判断两个标题是否描述同一新闻。
+    使用规范化词干集合的 Jaccard 系数，阈值 0.5。
+    自动尝试英文标题（当中文标题相似度不足时回退）。
+    """
     if not a or not b:
         return False
-    wa = set(a.lower().split())
-    wb = set(b.lower().split())
+    wa = _normalize_title(a)
+    wb = _normalize_title(b)
     if not wa or not wb:
         return False
     return len(wa & wb) / len(wa | wb) >= threshold
