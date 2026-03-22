@@ -11,7 +11,7 @@ KEYWORD_FILTER_TERMS = [
     "ai", "llm", "gpt", "mcp", "a2a",
     # 长词 → 子串匹配
     "agent", "agentic", "autonomous", "anthropic", "openai",
-    "deepmind", "gemini", "copilot", "claude", "chatgpt",
+    "deepmind", "copilot", "claude", "chatgpt",
     "artificial intelligence", "machine learning", "neural network",
     "large language model", "generative ai", "foundation model",
     "transformer model", "rag", "fine-tun",
@@ -23,6 +23,17 @@ KEYWORD_FILTER_EXACT = [
     "ai commerce", "ai trading", "defi ai", "crypto ai",
     "web3 ai", "smart contract ai", "model context protocol",
     "reasoning model", "language model", "inference engine",
+    # gemini 须搭配 AI 上下文才通过，避免误命中 Gemini 加密交易所
+    "gemini ai", "gemini model", "gemini pro", "gemini ultra",
+    "gemini nano", "gemini 2", "google gemini",
+]
+
+# 关键词黑名单：命中这些词时，即使通过了白名单也直接丢弃
+# 用于排除 gemini 交易所、crypto 交易所等噪声
+KEYWORD_BLOCKLIST = [
+    "gemini exchange", "gemini trading", "gemini trust",
+    "gemini lawsuit", "gemini sec", "gemini earn",
+    "winklevoss",  # Gemini 交易所创始人
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -108,7 +108,7 @@ def _preselect(articles: list[dict], n: int) -> list[dict]:
 def _is_similar_title(title_a: str, title_b: str) -> bool:
     """
     判断两个标题是否描述同一新闻。
-    使用简单的词集重叠率（Jaccard 系数），阈值 0.5。
+    使用简单的词集重叠率（Jaccard 系数），阈值 0.4。
     """
     if not title_a or not title_b:
         return False
@@ -119,7 +119,7 @@ def _is_similar_title(title_a: str, title_b: str) -> bool:
         return False
     intersection = words_a & words_b
     union = words_a | words_b
-    return len(intersection) / len(union) >= 0.5
+    return len(intersection) / len(union) >= 0.4
 
 
 def _dedup_by_title(articles: list[dict]) -> list[dict]:

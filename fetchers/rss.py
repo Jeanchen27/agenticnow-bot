@@ -59,11 +59,18 @@ def _matches_keyword_filter(title: str, excerpt: str) -> bool:
     """
     检查标题或摘要是否包含 AI/Agent 相关关键词（不区分大小写）。
     使用词边界匹配，防止 "ai" 误命中 "paid"/"retail" 等无关词。
+    先过黑名单（KEYWORD_BLOCKLIST），再过白名单。
     """
     import re
     text = f"{title} {excerpt}".lower()
-    from sources import KEYWORD_FILTER_TERMS, KEYWORD_FILTER_EXACT
-    # 短词（≤3字符）用词边界匹配，长词用子串匹配
+    from sources import KEYWORD_FILTER_TERMS, KEYWORD_FILTER_EXACT, KEYWORD_BLOCKLIST
+
+    # ── 黑名单：命中直接拒绝（优先级最高）────────────────────────────────────
+    for blocked in KEYWORD_BLOCKLIST:
+        if blocked in text:
+            return False
+
+    # ── 白名单：短词用词边界，长词用子串 ─────────────────────────────────────
     for term in KEYWORD_FILTER_TERMS:
         if len(term) <= 3:
             if re.search(rf"\b{re.escape(term)}\b", text):
@@ -71,10 +78,12 @@ def _matches_keyword_filter(title: str, excerpt: str) -> bool:
         else:
             if term in text:
                 return True
-    # 精确短语匹配（多词组合，无需词边界）
+
+    # ── 精确短语匹配（多词组合）──────────────────────────────────────────────
     for phrase in KEYWORD_FILTER_EXACT:
         if phrase in text:
             return True
+
     return False
 
 
