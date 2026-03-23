@@ -17,8 +17,10 @@ from sources import KEYWORD_FILTER_TERMS
 logger = logging.getLogger(__name__)
 
 HEADERS = {
+    # Substack / Cloudflare-protected feeds block custom bot UA strings.
+    # Using a generic Mozilla UA avoids HTTP 403 false positives.
     "User-Agent": (
-        "AgenticNowBot/1.0 (Telegram: @AgenticNow; "
+        "Mozilla/5.0 (compatible; RSS-Reader/2.0; "
         "+https://t.me/AgenticNow)"
     ),
     "Accept": "application/rss+xml, application/atom+xml, text/xml, */*",

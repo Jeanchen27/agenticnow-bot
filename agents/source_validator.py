@@ -138,12 +138,6 @@ class SourceValidatorAgent(BaseAgent):
         def _fetch_one(source: dict) -> tuple[dict, list[dict], str | None]:
             """返回 (source, articles, error_msg)"""
             try:
-                # 先用 feedparser 快速验证
-                d = feedparser.parse(source["rss"])
-                if d.get("bozo") and not d.get("entries"):
-                    err = str(d.get("bozo_exception", "empty feed"))[:80]
-                    return source, [], err
-
                 items = fetch_single_rss(source, hours_lookback=self.hours_lookback_rss)
                 return source, items, None
             except Exception as exc:

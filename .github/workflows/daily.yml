@@ -51,9 +51,6 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Check RSS source health (non-blocking)
-        run: python scripts/check_sources.py || echo "⚠️ Some sources failed health check, continuing anyway."
-
       - name: Run AgenticNow Bot
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
