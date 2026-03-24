@@ -6,9 +6,8 @@ Agent 3 — 草稿格式器
 - 按来源类型配额 + 相关度排序，选取最终推送文章（10-15 条）
 - 标题级去重（Jaccard 0.4）
 - 格式化 Telegram 推送（newsletter → podcast → reddit 顺序）
-- 生成英文 X Thread 草稿（2 条）
 - dry_run 时只打印预览，不实际发送
-- 输出：推送结果 + X Thread 草稿 + 选取报告
+- 输出：推送结果 + 选取报告
 """
 
 from __future__ import annotations
@@ -20,7 +19,6 @@ from typing import Optional
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from agents.base import AgentResult, BaseAgent, FilterEvent
-from processor.thread_writer import generate_threads
 from publisher.telegram import TelegramPublisher
 from storage.dedup import URLStore
 
@@ -56,14 +54,12 @@ class DraftFormatterAgent(BaseAgent):
         telegram_token: Optional[str] = None,
         telegram_channel: str = "@AgenticNow",
         anthropic_api_key: Optional[str] = None,
-        admin_chat_id: Optional[str] = None,
         dry_run: bool = False,
     ):
         super().__init__()
         self.telegram_token = telegram_token or os.environ.get("TELEGRAM_BOT_TOKEN")
         self.telegram_channel = telegram_channel
         self.api_key = anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY")
-        self.admin_chat_id = admin_chat_id or os.environ.get("TELEGRAM_ADMIN_ID")
         self.dry_run = dry_run
 
     # ── 公开入口 ──────────────────────────────────────────────────────────────
@@ -137,29 +133,9 @@ class DraftFormatterAgent(BaseAgent):
                 reason=f"入选推送（{art.get('type','?')} | 评分 {art.get('relevance','?')}/10）",
             ))
 
-        # ── Step 4: X Thread 草稿生成 ────────────────────────────────────────
-        x_threads: list[dict] = []
-        if not self.dry_run and final_articles:
-            self.logger.info("[Agent 3] 生成 X Thread 草稿...")
-            x_threads = generate_threads(final_articles, api_key=self.api_key)
-            if x_threads and self.admin_chat_id:
-                publisher = TelegramPublisher(self.telegram_token, self.telegram_channel)
-                publisher.send_thread_drafts(x_threads, self.admin_chat_id)
-                self.logger.info("[Agent 3] X Thread 草稿已发送给管理员")
-        elif self.dry_run and final_articles:
-            self.logger.info("\n🐦 DRY RUN — X Thread 草稿预览（不发送）：")
-            x_threads = generate_threads(final_articles, api_key=self.api_key)
-            from processor.thread_writer import format_thread_for_telegram
-            for i, thread in enumerate(x_threads, 1):
-                print(f"\n── Thread #{i} ──")
-                for tweet in thread.get("tweets", []):
-                    print(tweet)
-                    print()
-
         self.logger.info(
-            "✅ [Agent 3] 完成：推送 %d 条 | %d 条 X Thread 草稿",
+            "✅ [Agent 3] 完成：推送 %d 条",
             published_count if not self.dry_run else len(final_articles),
-            len(x_threads),
         )
 
         return AgentResult(
@@ -168,7 +144,6 @@ class DraftFormatterAgent(BaseAgent):
             data={
                 "final_articles": final_articles,
                 "published_count": published_count,
-                "x_threads": x_threads,
                 "dry_run": self.dry_run,
             },
             events=events,

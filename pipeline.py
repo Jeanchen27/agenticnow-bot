@@ -8,7 +8,7 @@ pipeline.py — AgenticNow 多代理流水线
       ↓
   Agent 2: ContentScorerAgent     — URL去重 → 关键词过滤 → 预排序 → LLM评分
       ↓
-  Agent 3: DraftFormatterAgent    — 配额选取 → Telegram推送 → X Thread草稿
+  Agent 3: DraftFormatterAgent    — 配额选取 → Telegram推送
 
 用法：
     python pipeline.py                    # 正式运行
@@ -69,7 +69,6 @@ class AgenticNowPipeline:
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         tg_token = os.environ.get("TELEGRAM_BOT_TOKEN")
         tg_channel = os.environ.get("TELEGRAM_CHANNEL_ID", "@AgenticNow")
-        admin_id = os.environ.get("TELEGRAM_ADMIN_ID")
 
         if not api_key:
             logger.error("ANTHROPIC_API_KEY is not set. Exiting.")
@@ -91,7 +90,6 @@ class AgenticNowPipeline:
             telegram_token=tg_token,
             telegram_channel=tg_channel,
             anthropic_api_key=api_key,
-            admin_chat_id=admin_id,
             dry_run=dry_run,
         )
 
@@ -190,11 +188,6 @@ class AgenticNowPipeline:
                 for a in results[2].data.get("final_articles", [])
             ]
 
-        # X Thread 草稿
-        x_threads = []
-        if len(results) >= 3:
-            x_threads = results[2].data.get("x_threads", [])
-
         return {
             "pipeline_run": {
                 "started_at": started_at.isoformat(),
@@ -204,7 +197,6 @@ class AgenticNowPipeline:
             "stage_stats": stage_stats,
             "dead_sources": dead_sources,
             "final_articles": final_articles,
-            "x_threads": x_threads,
             "filter_log": all_events,
             "agent_durations": {
                 r.agent_name: round(r.duration_sec, 2) for r in results

@@ -45,7 +45,6 @@ _MIN_RELEVANCE_BY_SOURCE: dict[str, int] = {
     if "min_relevance" in s
 }
 from processor.summarizer import summarize_articles
-from processor.thread_writer import generate_threads
 from publisher.telegram import TelegramPublisher
 from storage.dedup import URLStore
 
@@ -332,19 +331,6 @@ def run(
     published_urls = [a["url"] for a in final_articles[:published_count]]
     url_store.mark_seen_batch(published_urls)
     url_store.save()
-
-    # ── 生成 X Thread 草稿并发送给管理员审阅 ─────────────────────────────────
-    admin_chat_id = os.environ.get("TELEGRAM_ADMIN_ID")
-    if admin_chat_id and published_count > 0:
-        logger.info("🐦 Generating X Thread drafts...")
-        threads = generate_threads(final_articles, api_key=anthropic_api_key)
-        if threads:
-            thread_count = publisher.send_thread_drafts(threads, admin_chat_id)
-            logger.info("🐦 Sent %d thread drafts to admin", thread_count)
-        else:
-            logger.warning("🐦 No threads generated")
-    elif not admin_chat_id:
-        logger.info("🐦 TELEGRAM_ADMIN_ID not set, skipping X thread generation")
 
     logger.info("=" * 56)
     logger.info(
