@@ -44,7 +44,7 @@ class DraftFormatterAgent(BaseAgent):
     Agent 3：草稿格式器
 
     接收 Agent 2 输出的评分文章列表，执行最终选取、
-    Telegram 推送和 X Thread 草稿生成。
+    Telegram 推送。
     """
 
     name = "draft_formatter"
@@ -90,7 +90,7 @@ class DraftFormatterAgent(BaseAgent):
             return AgentResult(
                 agent_name=self.name,
                 success=True,
-                data={"published_count": 0, "x_threads": [], "final_articles": []},
+                data={"published_count": 0, "final_articles": []},
                 events=events,
                 error="无文章可推送",
             )
