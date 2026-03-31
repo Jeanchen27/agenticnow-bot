@@ -227,60 +227,6 @@ class TelegramPublisher:
         result = self._send(text)
         return len(articles) if result.get("ok") else 0
 
-    def send_thread_drafts(self, threads: list[dict], admin_chat_id: str) -> int:
-        """
-        将 X Thread 草稿发送到管理员私聊供审阅。
-
-        Args:
-            threads: thread 列表（含 article_title 和 tweets[]）
-            admin_chat_id: 管理员 Telegram 用户 ID
-
-        Returns:
-            成功发送的 thread 数量
-        """
-        from processor.thread_writer import format_thread_for_telegram
-
-        if not threads:
-            return 0
-
-        # 发送标题消息
-        header = (
-            "🐦 <b>今日 X Thread 草稿</b>\n"
-            "以下是精选的英文推文，请复制发布到 X：\n"
-        )
-        self._send_to(admin_chat_id, header)
-        time.sleep(1)
-
-        sent = 0
-        for i, thread in enumerate(threads, 1):
-            text = format_thread_for_telegram(thread, i)
-            result = self._send_to(admin_chat_id, text)
-            if result.get("ok"):
-                sent += 1
-                logger.info("✅ Thread #%d sent to admin", i)
-            else:
-                logger.error("❌ Thread #%d failed", i)
-            time.sleep(2)
-
-        return sent
-
-    def _send_to(self, chat_id: str, text: str, disable_preview: bool = True) -> dict:
-        """向指定 chat_id 发送消息。"""
-        url = f"{self._api_base}/sendMessage"
-        payload = {
-            "chat_id": chat_id,
-            "text": text[:MAX_MESSAGE_LENGTH],
-            "parse_mode": "HTML",
-            "disable_web_page_preview": disable_preview,
-        }
-
-        try:
-            resp = httpx.post(url, json=payload, timeout=15)
-            return resp.json()
-        except Exception as exc:
-            logger.error("Telegram send error: %s", exc)
-            return {"ok": False}
-
     def publish_articles(
         self, articles: list[dict], mode: str = "individual"
     ) -> int:
