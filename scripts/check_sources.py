@@ -81,8 +81,13 @@ def check_source(source: dict, hours_lookback: int = 48) -> dict:
 
     try:
         resp = httpx.get(rss_url, headers=HEADERS, timeout=TIMEOUT, follow_redirects=True)
-        resp.raise_for_status()
-        feed = feedparser.parse(resp.content)
+        # Substack 等平台对部分 IP 返回 403，但 feedparser 自带 UA 可绕过
+        # 遇到 403 时直接让 feedparser 自行抓取
+        if resp.status_code == 403:
+            feed = feedparser.parse(rss_url)
+        else:
+            resp.raise_for_status()
+            feed = feedparser.parse(resp.content)
 
         if feed.bozo and not feed.entries:
             result["error"] = f"Feed parse error: {getattr(feed, 'bozo_exception', 'unknown')}"
