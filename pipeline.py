@@ -141,6 +141,12 @@ class AgenticNowPipeline:
         results.append(r3)
         logger.info(r3.summary())
 
+        # ── Digest 生成 ──────────────────────────────────────────────────────
+        final_articles = r3.data.get("final_articles", [])
+        if not self.dry_run and final_articles:
+            digest_path = _save_digest(final_articles, started_at)
+            logger.info("📝 Daily digest 已保存至 %s", digest_path)
+
         report = self._build_report(results, started_at)
         logger.info("\n%s", _format_pipeline_summary(report))
         return report
@@ -238,6 +244,41 @@ def _format_pipeline_summary(report: dict) -> str:
     lines.append("═" * 60)
 
     return "\n".join(lines)
+
+
+def _save_digest(articles: list[dict], run_time: datetime, digest_dir: str = "daily-digest") -> str:
+    Path(digest_dir).mkdir(exist_ok=True)
+    date_str = run_time.strftime("%Y-%m-%d")
+    path = f"{digest_dir}/{date_str}.md"
+
+    lines = [
+        "---",
+        f"date: {date_str}",
+        f"source_count: {len(articles)}",
+        "---",
+        "",
+        "# AgenticNow Daily Digest",
+        "",
+        "## 文章列表",
+        "",
+    ]
+    for art in articles:
+        title = art.get("title_zh") or art.get("title", "")
+        url = art.get("url", "")
+        source = art.get("source_name", "")
+        score = art.get("relevance", "")
+        summary = art.get("summary_zh", "")
+        lines += [
+            f"### [{title}]({url})",
+            f"- 来源：{source}",
+            f"- 评分：{score}",
+            f"- 摘要：{summary}",
+            "",
+        ]
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    return path
 
 
 def _save_report(report: dict, reports_dir: str = "reports") -> str:
