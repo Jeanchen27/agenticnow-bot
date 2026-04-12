@@ -2,9 +2,10 @@
 
 ## 账号定位
 
-@AgenticNow 追踪 Agentic Web 的建设者、系统和转折信号。核心立场：数据、身份、资产应该由个人掌控，而不是被科技巨头和中心化组织垄断。
+@AgenticNow 追踪 Agentic Web 的建设者、系统和转折信号。核心立场：Agent 不是人的工具，而是伙伴与分身；人不会被 AI 替代，而是被赋能。在「意图互联网」（Agentic Web），人与 Agent 和谐共生，数据、身份、资产由个人掌控，不被科技巨头和中心化组织垄断。
 
 核心论点：
+- Agent = 人的伙伴与分身，不是工具
 - Crypto = AI Agent 的原生货币
 - DAO = Agent 原生组织形态
 - 互联网演化路径：信息 → 价值 → 意图（Agentic Web）
