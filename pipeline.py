@@ -14,7 +14,7 @@ pipeline.py — AgenticNow 多代理流水线
     python pipeline.py                    # 正式运行
     python pipeline.py --dry-run          # 预览，不推送 Telegram
     python pipeline.py --max-articles 12  # 控制最终推送数量
-    python pipeline.py --mode digest      # 合集模式
+    python pipeline.py --mode individual  # 逐条推送
     python pipeline.py --report           # 运行完成后输出完整过滤报告
 
 报告文件自动保存至 reports/YYYY-MM-DD_HH-MM.json
@@ -30,7 +30,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+_BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(_BASE_DIR / ".env")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -60,21 +61,24 @@ class AgenticNowPipeline:
         hours_lookback_rss: int = 168,
         hours_lookback_reddit: int = 48,
         enable_github: bool = True,
-        store_path: str = "seen_urls.json",
+        store_path: str = str(_BASE_DIR / "seen_urls.json"),
     ):
         self.dry_run = dry_run
         self.max_articles = max_articles
         self.publish_mode = publish_mode
 
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        api_key = os.environ.get("GLM_API_KEY")
         tg_token = os.environ.get("TELEGRAM_BOT_TOKEN")
-        tg_channel = os.environ.get("TELEGRAM_CHANNEL_ID", "@AgenticNow")
+        tg_channel = os.environ.get("TELEGRAM_CHANNEL_ID", "")
 
         if not api_key:
-            logger.error("ANTHROPIC_API_KEY is not set. Exiting.")
+            logger.error("GLM_API_KEY is not set. Exiting.")
             sys.exit(1)
         if not dry_run and not tg_token:
             logger.error("TELEGRAM_BOT_TOKEN is not set (required for live mode). Exiting.")
+            sys.exit(1)
+        if not dry_run and not tg_channel:
+            logger.error("TELEGRAM_CHANNEL_ID is not set (required for live mode). Exiting.")
             sys.exit(1)
 
         self.agent1 = SourceValidatorAgent(
@@ -83,13 +87,12 @@ class AgenticNowPipeline:
             enable_github=enable_github,
         )
         self.agent2 = ContentScorerAgent(
-            anthropic_api_key=api_key,
+            glm_api_key=api_key,
             store_path=store_path,
         )
         self.agent3 = DraftFormatterAgent(
             telegram_token=tg_token,
             telegram_channel=tg_channel,
-            anthropic_api_key=api_key,
             dry_run=dry_run,
         )
 
@@ -246,7 +249,11 @@ def _format_pipeline_summary(report: dict) -> str:
     return "\n".join(lines)
 
 
-def _save_digest(articles: list[dict], run_time: datetime, digest_dir: str = "daily-digest") -> str:
+def _save_digest(
+    articles: list[dict],
+    run_time: datetime,
+    digest_dir: str = str(_BASE_DIR / "daily-digest"),
+) -> str:
     Path(digest_dir).mkdir(exist_ok=True)
     date_str = run_time.strftime("%Y-%m-%d")
     path = f"{digest_dir}/{date_str}.md"
@@ -264,12 +271,15 @@ def _save_digest(articles: list[dict], run_time: datetime, digest_dir: str = "da
     ]
     for art in articles:
         title = art.get("title_zh") or art.get("title", "")
+        orig_title = art.get("title", "")
         url = art.get("url", "")
         source = art.get("source_name", "")
         score = art.get("relevance", "")
         summary = art.get("summary_zh", "")
+        lines.append(f"### [{title}]({url})")
+        if orig_title and orig_title != title:
+            lines.append(f"- 原题：{orig_title}")
         lines += [
-            f"### [{title}]({url})",
             f"- 来源：{source}",
             f"- 评分：{score}",
             f"- 摘要：{summary}",
@@ -281,7 +291,7 @@ def _save_digest(articles: list[dict], run_time: datetime, digest_dir: str = "da
     return path
 
 
-def _save_report(report: dict, reports_dir: str = "reports") -> str:
+def _save_report(report: dict, reports_dir: str = str(_BASE_DIR / "reports")) -> str:
     Path(reports_dir).mkdir(exist_ok=True)
     ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
     path = f"{reports_dir}/{ts}.json"
@@ -319,14 +329,35 @@ def main() -> None:
     )
     p.add_argument("--dry-run", action="store_true", help="预览模式，不推送 Telegram")
     p.add_argument("--max-articles", type=int, default=12, help="最终推送文章数（默认 12）")
-    p.add_argument("--mode", choices=["individual", "digest"], default="individual",
-                   help="推送格式：individual（逐条）或 digest（合集）")
-    p.add_argument("--rss-lookback", type=int, default=168, help="RSS 时间窗口（小时，默认 168）")
+    p.add_argument(
+        "--mode",
+        choices=["individual", "digest"],
+        default="digest",
+        help="推送格式：digest（合集，默认）或 individual（逐条）",
+    )
+    p.add_argument(
+        "--rss-lookback",
+        "--hours-lookback",
+        dest="rss_lookback",
+        type=int,
+        default=168,
+        help="RSS 时间窗口（小时，默认 168）",
+    )
     p.add_argument("--reddit-lookback", type=int, default=48, help="Reddit 时间窗口（小时，默认 48）")
-    p.add_argument("--no-github", action="store_true", help="禁用 GitHub Trending")
+    p.add_argument(
+        "--no-github",
+        "--disable-github",
+        dest="no_github",
+        action="store_true",
+        help="禁用 GitHub Trending",
+    )
     p.add_argument("--report", action="store_true", help="打印完整过滤报告")
     p.add_argument("--save-report", action="store_true", help="将报告保存至 reports/ 目录")
-    p.add_argument("--store", default="seen_urls.json", help="URL 去重存储文件路径")
+    p.add_argument(
+        "--store",
+        default=str(_BASE_DIR / "seen_urls.json"),
+        help="URL 去重存储文件路径",
+    )
     args = p.parse_args()
 
     pipeline = AgenticNowPipeline(

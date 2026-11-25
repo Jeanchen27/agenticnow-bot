@@ -53,13 +53,11 @@ class DraftFormatterAgent(BaseAgent):
         self,
         telegram_token: Optional[str] = None,
         telegram_channel: str = "@AgenticNow",
-        anthropic_api_key: Optional[str] = None,
         dry_run: bool = False,
     ):
         super().__init__()
         self.telegram_token = telegram_token or os.environ.get("TELEGRAM_BOT_TOKEN")
         self.telegram_channel = telegram_channel
-        self.api_key = anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY")
         self.dry_run = dry_run
 
     # ── 公开入口 ──────────────────────────────────────────────────────────────

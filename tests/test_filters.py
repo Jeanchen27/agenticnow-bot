@@ -330,3 +330,73 @@ class TestDedupByTitle:
         result = self._run_dedup(articles)
         assert len(result) == 1
         assert result[0]["url"] == "https://bankless.com/kalshi"  # 保留高分
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 3. 中文编译校验与相关度门槛测试
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestChineseTranslationAndRelevanceGate:
+    """确保未翻译的英文原文和低于 6 分的内容不会进入推送列表"""
+
+    def test_merge_summary_rejects_english_only_output(self):
+        from processor.summarizer import _merge_summary
+
+        raw = {"title": "OpenAI Releases Agent SDK", "category": "AI Agent"}
+        # 纯英文输出应被拒绝（返回 None），触发补译或拦截
+        english_only = {
+            "title_zh": "OpenAI Releases Agent SDK",
+            "summary_zh": "OpenAI announced a new agent framework today.",
+            "relevance": 9,
+        }
+        assert _merge_summary(raw, english_only) is None
+
+        # 正常中文编译应通过
+        valid_zh = {
+            "title_zh": "OpenAI 发布全新 Agent SDK",
+            "summary_zh": "OpenAI 推出面向生产环境的 Agent SDK，支持工具调用与状态编排。",
+            "tags": ["#AIAgent", "#OpenAI"],
+            "relevance": 9,
+        }
+        merged = _merge_summary(raw, valid_zh)
+        assert merged is not None
+        assert merged["translated"] is True
+        assert merged["relevance"] == 9
+
+    def test_scorer_blocks_untranslated_and_low_relevance(self, tmp_path):
+        from agents.content_scorer import ContentScorerAgent
+
+        scorer = ContentScorerAgent(glm_api_key="dummy", store_path=str(tmp_path / "seen.json"))
+        events = []
+        articles = [
+            {
+                "title": "Untranslated Raw English Article",
+                "title_zh": "",
+                "summary_zh": "",
+                "translated": False,
+                "relevance": 0,
+                "source_id": "latent_space",
+                "source_name": "Latent Space",
+            },
+            {
+                "title": "Low Score Article",
+                "title_zh": "低分泛科技文章",
+                "summary_zh": "这是一篇与核心方向关联较弱的泛科技新闻摘要。",
+                "translated": True,
+                "relevance": 5,
+                "source_id": "latent_space",
+                "source_name": "Latent Space",
+            },
+            {
+                "title": "High Score Agent Article",
+                "title_zh": "高分 AI Agent 核心突破",
+                "summary_zh": "新发布的 MCP 工具链大幅提升多智能体协作稳定性与部署速度。",
+                "translated": True,
+                "relevance": 8,
+                "source_id": "latent_space",
+                "source_name": "Latent Space",
+            },
+        ]
+        passed = scorer._apply_min_relevance(articles, events)
+        assert len(passed) == 1
+        assert passed[0]["title_zh"] == "高分 AI Agent 核心突破"

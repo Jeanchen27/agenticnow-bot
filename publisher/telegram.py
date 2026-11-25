@@ -103,11 +103,6 @@ class TelegramPublisher:
             return ""
 
         date_str = datetime.now().strftime("%Y年%m月%d日")
-        lines = [
-            f"🗞 <b>AgenticNow · {date_str}</b>  精选 {len(articles)} 篇",
-            "━━━━━━━━━━━━━━━━━━━━",
-            "",
-        ]
 
         # 按类型分组
         by_type: dict[str, list[tuple[int, dict]]] = {}
@@ -115,40 +110,47 @@ class TelegramPublisher:
             t = art.get("type", "rss")
             by_type.setdefault(t, []).append((idx, art))
 
-        # 按预定义顺序输出各分组
-        global_idx = 0
-        for source_type, section_title in SOURCE_TYPE_SECTIONS:
-            group = by_type.get(source_type, [])
-            if not group:
-                continue
+        def _render_digest(max_summary_chars: int) -> str:
+            lines = [
+                f"🗞 <b>AgenticNow · {date_str}</b>  精选 {len(articles)} 篇",
+                "━━━━━━━━━━━━━━━━━━━━",
+                "",
+            ]
+            global_idx = 0
+            for source_type, section_title in SOURCE_TYPE_SECTIONS:
+                group = by_type.get(source_type, [])
+                if not group:
+                    continue
 
-            lines.append(f"<b>{section_title}</b>")
-            lines.append("")
-
-            for _, art in group:
-                global_idx += 1
-                title_zh = _escape_html(art.get("title_zh") or art.get("title", ""))
-                summary_zh = _escape_html(art.get("summary_zh", ""))
-                url = art.get("url", "")
-                source = _escape_html(art.get("source_name", ""))
-                emoji = self._get_emoji(art.get("category", ""))
-
-                # 摘要截断到 80 字
-                summary_short = summary_zh[:80] + ("…" if len(summary_zh) > 80 else "")
-
-                lines.append(f"{emoji} <b>{global_idx}. {title_zh}</b>")
-                if summary_short:
-                    lines.append(summary_short)
-                lines.append(f'📌 <a href="{url}">{source}</a>')
+                lines.append(f"<b>{section_title}</b>")
                 lines.append("")
 
-        text = "\n".join(lines).strip()
+                for _, art in group:
+                    global_idx += 1
+                    title_zh = _escape_html(art.get("title_zh") or art.get("title", ""))
+                    raw_summary = (art.get("summary_zh") or "").strip()
+                    if len(raw_summary) > max_summary_chars:
+                        raw_summary = raw_summary[:max_summary_chars].rstrip("，、； ") + "…"
+                    summary_zh = _escape_html(raw_summary)
+                    url = art.get("url", "")
+                    source = _escape_html(art.get("source_name", ""))
+                    emoji = self._get_emoji(art.get("category", ""))
 
-        # 超出 4096 时截断（保险机制）
-        if len(text) > MAX_MESSAGE_LENGTH:
-            text = text[:MAX_MESSAGE_LENGTH - 10] + "\n…"
+                    lines.append(f"{emoji} <b>{global_idx}. {title_zh}</b>")
+                    if summary_zh:
+                        lines.append(summary_zh)
+                    lines.append(f'📌 <a href="{url}">{source}</a>')
+                    lines.append("")
 
-        return text
+            return "\n".join(lines).strip()
+
+        # 优先保留完整中文编译摘要（140字），若整条合集超过 Telegram 4096 上限则逐步收紧摘要长度，绝不截断 HTML 标签
+        for limit in (140, 110, 85, 60, 40):
+            text = _render_digest(limit)
+            if len(text) <= MAX_MESSAGE_LENGTH:
+                return text
+
+        return _render_digest(30)
 
     # ─── 发送 ─────────────────────────────────────────────────────────────────
 

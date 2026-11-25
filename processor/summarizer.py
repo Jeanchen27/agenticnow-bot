@@ -1,50 +1,65 @@
 """
-Claude API 摘要生成器
-批量处理文章，生成中文标题 + 摘要 + 标签 + 相关度评分
+智谱 GLM API 中文编译摘要与评分生成器
+批量处理英文信源文章，生成中文标题 + 中文编译摘要 + 标签 + 相关度评分
 """
+
+from __future__ import annotations
 
 import json
 import logging
+import os
 import re
+import time
 from typing import Optional
 
-import anthropic
+import httpx
 
 logger = logging.getLogger(__name__)
 
+GLM_API_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+DEFAULT_GLM_MODEL = "glm-5.3-flash"
+
 # ─── Prompt ──────────────────────────────────────────────────────────────────
 
-SYSTEM_PROMPT = """你是 @AgenticNow Telegram频道的内容编辑。频道聚焦五大方向：
+SYSTEM_PROMPT = """你是 @AgenticNow Telegram 频道的主编。频道聚焦五大方向：
 1. AI Agent — 自主系统、Agent 框架、MCP、多智能体协作
 2. Agentic Web — AI 改变互联网交互方式、平台策略、自主浏览
 3. Agentic Economy — AI 驱动的经济变革、Crypto×AI、去中心化计算
 4. Agentic Commerce — 自主商业、DeFi、AI 驱动的市场与交易
 5. Agentic Payment — Agent 支付、稳定币、金融科技、支付基础设施
 
-你的读者是对 AI 前沿感兴趣的中文用户，具备一定技术背景，关注实际落地。
-评分标准：与以上五大方向直接相关的内容给 8-10 分，间接相关给 5-7 分，无关内容给 1-4 分。"""
+你的读者是对 AI 前沿感兴趣的中文读者，关注实际落地与趋势判断。
+评分标准：与以上五大方向直接相关给 8-10 分，间接相关给 6-7 分，泛科技/纯行情/无关内容给 1-5 分。
 
-USER_TEMPLATE = """请为以下英文文章生成中文摘要，返回 JSON 数组。
+中文编译与写作规范：
+- 必须将英文标题与内容准确编译为自然流畅的中文，严禁直接照搬整句英文原文
+- 保留核心英文专有术语不强行翻译（如 Agent、MCP、A2A、DAO、RWA、DeFi、LLM、RAG、OPC 及产品/公司名）
+- 短句表达，直接进主题，禁用「值得注意的是」「总而言之」「综上所述」等 AI 腔连接词
+- 字符串内部引用统一使用中文引号「」或书名号《》，禁止使用英文双引号"""
+
+USER_TEMPLATE = """请将以下英文文章编译为中文精选内容并打分，返回 JSON 数组。
 
 每篇文章必须包含：
-- title_zh: 中文标题（≤25字，准确且有吸引力，突出核心信息点）
-- summary_zh: 中文摘要（2-3句，共80-120字。格式：①是什么 ②为什么重要 ③对 AI/Crypto/工作的影响）
-- tags: 3-5个标签（#开头，中英文均可，如 #AIAgent #Agentic支付 #去中心化）
-- relevance: 与AgenticNow主题的相关度评分 1-10（10=核心主题，1=不相关）
+- id: 对应输入文章的整数 id（保持一致）
+- title_zh: 中文编译标题（≤25字，准确提炼核心信息点，必须包含中文）
+- summary_zh: 中文编译摘要（2-3句完整中文，共80-120字。结构：①核心发布了什么/讲了什么 ②为什么重要 ③对 AI/Crypto/实际工作流的影响）
+- tags: 3-5个标签（#开头，中英文均可，如 #AIAgent #AgenticPayment #MCP）
+- relevance: 与 AgenticNow 主题的相关度整数评分 1-10（10=核心主题，低于6分将不予推送）
 
 ⚠️ 重要：所有字符串值内部禁止使用英文双引号（"），改用中文引号「」或书名号《》，否则 JSON 解析会失败。
 
 文章列表：
 {articles_json}
 
-直接返回 JSON 数组，不要 markdown 包裹，不要额外解释。
+直接返回 JSON 数组，不要 markdown 代码块包裹，不要额外解释。
 
 示例格式：
 [
   {{
-    "title_zh": "OpenAI 发布新一代 Agent 框架",
-    "summary_zh": "OpenAI 推出名为 Realtime Agent API 的新框架，支持多模态工具调用与长期记忆。该框架大幅降低构建自主 AI 系统的门槛，开发者可在数小时内完成端到端 Agent 部署。这标志着 AI Agent 商业化进入快速普及阶段，对企业自动化流程影响深远。",
-    "tags": ["#AIAgent", "#OpenAI", "#自主系统", "#工具调用"],
+    "id": 0,
+    "title_zh": "OpenAI 发布新一代 Realtime Agent 框架",
+    "summary_zh": "OpenAI 推出 Realtime Agent API，原生支持多模态工具调用与长期记忆。该框架降低了自主系统开发门槛，数小时内即可完成端到端 Agent 部署。企业自动化工作流正加速向原生 Agent 架构迁移。",
+    "tags": ["#AIAgent", "#OpenAI", "#工具调用", "#自主系统"],
     "relevance": 10
   }}
 ]"""
@@ -52,8 +67,15 @@ USER_TEMPLATE = """请为以下英文文章生成中文摘要，返回 JSON 数�
 
 # ─── Helper ──────────────────────────────────────────────────────────────────
 
+def _has_chinese(text: str) -> bool:
+    """检查字符串是否包含至少 2 个中文字符，确保已完成中文编译。"""
+    if not text:
+        return False
+    return len(re.findall(r"[\u4e00-\u9fff]", text)) >= 2
+
+
 def _build_article_input(articles: list[dict]) -> str:
-    """构建发给 Claude 的文章 JSON 输入。"""
+    """构建发给 GLM 的文章 JSON 输入。"""
     items = []
     for i, art in enumerate(articles):
         items.append(
@@ -62,7 +84,7 @@ def _build_article_input(articles: list[dict]) -> str:
                 "title": art.get("title", ""),
                 "source": art.get("source_name", ""),
                 "category": art.get("category", ""),
-                "excerpt": art.get("excerpt", "")[:200],
+                "excerpt": art.get("excerpt", "")[:300],
                 "url": art.get("url", ""),
             }
         )
@@ -70,8 +92,7 @@ def _build_article_input(articles: list[dict]) -> str:
 
 
 def _clean_json_text(text: str) -> str:
-    """清洗 Claude 输出，修复常见的 JSON 格式问题。"""
-    # 去掉 markdown code block
+    """清洗模型输出，剥离 markdown 代码块。"""
     text = text.strip()
     text = re.sub(r"^```(?:json)?\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
@@ -79,11 +100,7 @@ def _clean_json_text(text: str) -> str:
 
 
 def _fix_unescaped_quotes(text: str) -> str:
-    """
-    修复 JSON 字符串值内部的未转义英文双引号。
-    策略：将 JSON 字符串值中的内部引号替换为中文引号「」。
-    """
-    # 用状态机逐字符扫描，定位字符串内部的裸引号并替换
+    """修复 JSON 字符串值内部的未转义英文双引号，替换为「。"""
     result = []
     in_string = False
     escape_next = False
@@ -93,7 +110,7 @@ def _fix_unescaped_quotes(text: str) -> str:
         if escape_next:
             result.append(ch)
             escape_next = False
-        elif ch == '\\':
+        elif ch == "\\":
             result.append(ch)
             escape_next = True
         elif ch == '"':
@@ -101,59 +118,188 @@ def _fix_unescaped_quotes(text: str) -> str:
                 in_string = True
                 result.append(ch)
             else:
-                # 判断这是否是字符串结束引号
-                # 向后看：跳过空白，是否后面跟着 : , ] } 或文件结尾
                 j = i + 1
-                while j < len(text) and text[j] in ' \t\r\n':
+                while j < len(text) and text[j] in " \t\r\n":
                     j += 1
-                next_ch = text[j] if j < len(text) else ''
-                if next_ch in (':', ',', ']', '}', ''):
+                next_ch = text[j] if j < len(text) else ""
+                if next_ch in (":", ",", "]", "}", ""):
                     in_string = False
                     result.append(ch)
                 else:
-                    # 内部裸引号 → 替换为中文引号
-                    result.append('\u300c')  # 「
+                    result.append("\u300c")
         else:
             result.append(ch)
         i += 1
-    return ''.join(result)
+    return "".join(result)
 
 
 def _extract_json(text: str) -> list[dict]:
-    """从 Claude 响应中提取 JSON 数组，兼容 markdown 代码块和裸引号。"""
+    """从 GLM 响应中提取 JSON 数组，兼容 markdown 代码块和裸引号。"""
     text = _clean_json_text(text)
 
-    # 第一次尝试：直接解析
     try:
-        return json.loads(text)
+        parsed = json.loads(text)
+        if isinstance(parsed, list):
+            return parsed
     except json.JSONDecodeError:
         pass
 
-    # 第二次尝试：提取第一个 [ ... ] 块后解析
     match = re.search(r"\[[\s\S]*\]", text)
     if match:
         candidate = match.group()
         try:
-            return json.loads(candidate)
+            parsed = json.loads(candidate)
+            if isinstance(parsed, list):
+                return parsed
         except json.JSONDecodeError:
-            # 第三次尝试：修复内部裸引号后再解析
             try:
-                return json.loads(_fix_unescaped_quotes(candidate))
+                parsed = json.loads(_fix_unescaped_quotes(candidate))
+                if isinstance(parsed, list):
+                    return parsed
             except json.JSONDecodeError:
                 pass
 
-    raise ValueError(f"Cannot parse JSON from response: {text[:200]}")
+    raise ValueError(f"Cannot parse JSON from GLM response: {text[:200]}")
 
 
-def _fallback_article(article: dict) -> dict:
-    """若 Claude 调用失败，返回带原始标题的文章（无中文摘要）。"""
+def _call_glm_chat(
+    user_message: str,
+    api_key: str,
+    model: str,
+    max_retries: int = 3,
+) -> str:
+    """调用智谱 GLM Chat Completions 接口，带退避重试。"""
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": model,
+        "thinking": {"type": "disabled"},
+        "temperature": 0.2,
+        "max_tokens": 8192,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_message},
+        ],
+    }
+
+    last_error: Optional[Exception] = None
+    timeout = httpx.Timeout(120.0, connect=15.0)
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            resp = httpx.post(GLM_API_URL, headers=headers, json=payload, timeout=timeout)
+            if resp.status_code == 200:
+                data = resp.json()
+                content = (
+                    data.get("choices", [{}])[0]
+                    .get("message", {})
+                    .get("content", "")
+                )
+                if content:
+                    return content
+                raise ValueError(f"GLM returned empty content: {resp.text[:200]}")
+
+            if resp.status_code in (429, 500, 502, 503, 504):
+                wait_sec = 2 ** attempt
+                logger.warning(
+                    "GLM API HTTP %d (attempt %d/%d): %s — retrying in %ds",
+                    resp.status_code,
+                    attempt,
+                    max_retries,
+                    resp.text[:160],
+                    wait_sec,
+                )
+                time.sleep(wait_sec)
+                last_error = RuntimeError(f"GLM HTTP {resp.status_code}: {resp.text[:160]}")
+                continue
+
+            raise RuntimeError(f"GLM HTTP {resp.status_code}: {resp.text[:200]}")
+
+        except (httpx.TimeoutException, httpx.NetworkError) as exc:
+            wait_sec = 2 ** attempt
+            logger.warning(
+                "GLM network/timeout error (attempt %d/%d): %s — retrying in %ds",
+                attempt,
+                max_retries,
+                exc,
+                wait_sec,
+            )
+            last_error = exc
+            time.sleep(wait_sec)
+
+    raise RuntimeError(f"GLM API failed after {max_retries} attempts: {last_error}")
+
+
+def _merge_summary(article: dict, summary: dict) -> Optional[dict]:
+    """合并单条模型输出，校验中文标题和中文摘要是否有效。"""
+    title_zh = (summary.get("title_zh") or "").strip()
+    summary_zh = (summary.get("summary_zh") or "").strip()
+
+    if not (_has_chinese(title_zh) and _has_chinese(summary_zh)):
+        return None
+
+    try:
+        relevance = int(summary.get("relevance", 5))
+    except (TypeError, ValueError):
+        relevance = 5
+    relevance = max(1, min(10, relevance))
+
+    tags = summary.get("tags")
+    if not isinstance(tags, list) or not tags:
+        cat_tag = article.get("category", "AI").replace("×", "").replace(" ", "")
+        tags = [f"#{cat_tag}"]
+
     return {
         **article,
-        "title_zh": article.get("title", ""),
-        "summary_zh": article.get("excerpt", "")[:100],
-        "tags": [f"#{article.get('category', 'AI').replace('×', '').replace(' ', '')}"],
-        "relevance": 5,
+        "title_zh": title_zh,
+        "summary_zh": summary_zh,
+        "tags": tags,
+        "relevance": relevance,
+        "translated": True,
     }
+
+
+def _untranslated_fallback(article: dict) -> dict:
+    """
+    若多次重试后仍无法生成中文编译，标记 translated=False 且 relevance=0，
+    由下游评分器拦截，绝不将未翻译的英文原文直接推出去。
+    """
+    return {
+        **article,
+        "title_zh": "",
+        "summary_zh": "",
+        "tags": [],
+        "relevance": 0,
+        "translated": False,
+    }
+
+
+def _summarize_batch_once(
+    batch: list[dict],
+    api_key: str,
+    model: str,
+) -> dict[int, dict]:
+    """对一批文章调用一次 GLM，返回成功通过中文校验的 {batch_index: merged_article}。"""
+    article_json = _build_article_input(batch)
+    user_message = USER_TEMPLATE.format(articles_json=article_json)
+    response_text = _call_glm_chat(user_message, api_key=api_key, model=model)
+    summaries = _extract_json(response_text)
+
+    resolved: dict[int, dict] = {}
+    for pos, summary in enumerate(summaries):
+        if not isinstance(summary, dict):
+            continue
+        idx = summary.get("id")
+        if not isinstance(idx, int) or not (0 <= idx < len(batch)):
+            idx = pos
+        if 0 <= idx < len(batch) and idx not in resolved:
+            merged = _merge_summary(batch[idx], summary)
+            if merged is not None:
+                resolved[idx] = merged
+
+    return resolved
 
 
 # ─── Main ────────────────────────────────────────────────────────────────────
@@ -161,83 +307,77 @@ def _fallback_article(article: dict) -> dict:
 def summarize_articles(
     articles: list[dict],
     api_key: Optional[str] = None,
+    model: Optional[str] = None,
 ) -> list[dict]:
     """
-    使用 Claude API 批量生成中文摘要。
+    使用智谱 GLM API 批量生成中文编译标题、中文摘要与相关度评分。
 
-    每批最多 15 篇文章，使用流式请求（避免超时）。
-    若某批失败则降级为原始标题，不中断整体流程。
-
-    Args:
-        articles: 文章字典列表（含 title、excerpt、category 等）
-        api_key:  可选，若不传则读取 ANTHROPIC_API_KEY 环境变量
-
-    Returns:
-        enriched_articles: 每篇文章额外包含 title_zh、summary_zh、tags、relevance
+    每批最多 10 篇文章；若整批失败或部分条目缺失中文翻译，会自动对漏译条目补译重试一次。
+    若最终仍失败，则标记 translated=False（relevance=0），杜绝英文原文裸推。
     """
     if not articles:
         return []
 
-    client = anthropic.Anthropic(api_key=api_key) if api_key else anthropic.Anthropic()
+    resolved_key = api_key or os.environ.get("GLM_API_KEY")
+    if not resolved_key:
+        raise ValueError("GLM_API_KEY is not set.")
+
+    resolved_model = model or os.environ.get("GLM_MODEL", DEFAULT_GLM_MODEL)
     enriched: list[dict] = []
 
-    BATCH_SIZE = 15
-    total_batches = (len(articles) + BATCH_SIZE - 1) // BATCH_SIZE
+    batch_size = 10
+    total_batches = (len(articles) + batch_size - 1) // batch_size
 
-    for batch_idx in range(0, len(articles), BATCH_SIZE):
-        batch = articles[batch_idx : batch_idx + BATCH_SIZE]
-        batch_num = batch_idx // BATCH_SIZE + 1
-        logger.info("Summarizing batch %d/%d (%d articles)...", batch_num, total_batches, len(batch))
+    for batch_idx in range(0, len(articles), batch_size):
+        batch = articles[batch_idx : batch_idx + batch_size]
+        batch_num = batch_idx // batch_size + 1
+        logger.info(
+            "Summarizing batch %d/%d (%d articles) via %s...",
+            batch_num,
+            total_batches,
+            len(batch),
+            resolved_model,
+        )
 
+        resolved_map: dict[int, dict] = {}
         try:
-            article_json = _build_article_input(batch)
-            user_message = USER_TEMPLATE.format(articles_json=article_json)
-
-            # 使用 streaming 避免长请求超时
-            with client.messages.stream(
-                model="claude-haiku-4-5",
-                max_tokens=4096,
-                system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": user_message}],
-            ) as stream:
-                response = stream.get_final_message()
-
-            response_text = response.content[0].text
-            summaries = _extract_json(response_text)
-
-            # 将摘要合并回原文章
-            for j, summary in enumerate(summaries):
-                if j < len(batch):
-                    enriched.append(
-                        {
-                            **batch[j],
-                            "title_zh": summary.get("title_zh") or batch[j].get("title", ""),
-                            "summary_zh": summary.get("summary_zh", ""),
-                            "tags": summary.get("tags", []),
-                            "relevance": int(summary.get("relevance", 5)),
-                        }
-                    )
-
-            # 若 Claude 返回条数少于发送条数，用 fallback 补齐
-            if len(summaries) < len(batch):
-                for k in range(len(summaries), len(batch)):
-                    enriched.append(_fallback_article(batch[k]))
-
-            logger.info("Batch %d/%d done.", batch_num, total_batches)
-
-        except ValueError as exc:
-            logger.error("JSON parse error in batch %d: %s", batch_num, exc)
-            for article in batch:
-                enriched.append(_fallback_article(article))
-
-        except anthropic.APIError as exc:
-            logger.error("Claude API error in batch %d: %s", batch_num, exc)
-            for article in batch:
-                enriched.append(_fallback_article(article))
-
+            resolved_map = _summarize_batch_once(batch, resolved_key, resolved_model)
         except Exception as exc:
-            logger.error("Unexpected error in batch %d: %s", batch_num, exc)
-            for article in batch:
-                enriched.append(_fallback_article(article))
+            logger.warning("Batch %d failed (%s), retrying missing items...", batch_num, exc)
+
+        # 对漏译或未返回中文的条目执行一次补译重试
+        missing_indices = [i for i in range(len(batch)) if i not in resolved_map]
+        if missing_indices:
+            retry_articles = [batch[i] for i in missing_indices]
+            logger.info(
+                "Retrying %d untranslated article(s) in batch %d...",
+                len(retry_articles),
+                batch_num,
+            )
+            try:
+                retry_map = _summarize_batch_once(retry_articles, resolved_key, resolved_model)
+                for sub_idx, merged in retry_map.items():
+                    orig_idx = missing_indices[sub_idx]
+                    resolved_map[orig_idx] = merged
+            except Exception as exc:
+                logger.error("Retry failed in batch %d: %s", batch_num, exc)
+
+        for i, art in enumerate(batch):
+            if i in resolved_map:
+                enriched.append(resolved_map[i])
+            else:
+                logger.warning(
+                    "Article translation failed, dropping untranslated item: %s",
+                    art.get("title", "")[:60],
+                )
+                enriched.append(_untranslated_fallback(art))
+
+        logger.info(
+            "Batch %d/%d done (%d/%d translated).",
+            batch_num,
+            total_batches,
+            len(resolved_map),
+            len(batch),
+        )
 
     return enriched

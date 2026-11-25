@@ -211,18 +211,18 @@ def persona_match(skills: list[dict]) -> list[dict]:
     return matched
 
 
-# ─── Step 4: Claude API 中文友好度评分 ────────────────────────────────────────
+# ─── Step 4: GLM API 中文友好度评分 ───────────────────────────────────────────
 
 def score_china_friendliness(skills: list[dict], api_key: str) -> list[dict]:
     """
-    批量调用 Claude API，为每个 Skill 打中文友好度分。
+    批量调用智谱 GLM API，为每个 Skill 打中文友好度分。
     失败时 china_score 默认 5（中性），不阻断流水线。
     """
-    client_url = "https://api.anthropic.com/v1/messages"
+    client_url = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+    model = os.environ.get("GLM_MODEL", "glm-5.3-flash")
     headers = {
-        "x-api-key": api_key,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
     }
 
     for i, skill in enumerate(skills):
@@ -234,16 +234,23 @@ def score_china_friendliness(skills: list[dict], api_key: str) -> list[dict]:
         )
 
         payload = {
-            "model": "claude-haiku-4-5-20251001",  # 省 token，haiku 够用
-            "max_tokens": 300,
+            "model": model,
+            "thinking": {"type": "disabled"},
+            "temperature": 0.2,
+            "max_tokens": 1024,
             "messages": [{"role": "user", "content": prompt}],
         }
 
         try:
-            resp = httpx.post(client_url, json=payload, headers=headers, timeout=30)
+            resp = httpx.post(client_url, json=payload, headers=headers, timeout=45)
             if resp.status_code == 200:
-                content = resp.json()["content"][0]["text"].strip()
-                # 提取 JSON（有时 Claude 会在前后加注释）
+                content = (
+                    resp.json()
+                    .get("choices", [{}])[0]
+                    .get("message", {})
+                    .get("content", "")
+                    .strip()
+                )
                 json_match = re.search(r"\{.*\}", content, re.DOTALL)
                 if json_match:
                     parsed = json.loads(json_match.group())
@@ -258,7 +265,7 @@ def score_china_friendliness(skills: list[dict], api_key: str) -> list[dict]:
                 else:
                     skill["china_score"] = 5
             else:
-                logger.warning("Claude API %d for skill '%s'", resp.status_code, skill["name"])
+                logger.warning("GLM API %d for skill '%s'", resp.status_code, skill["name"])
                 skill["china_score"] = 5
         except Exception as exc:
             logger.warning("China score error for '%s': %s", skill["name"], exc)
@@ -488,15 +495,18 @@ def run(
     logger.info("  top_n=%d  %s", top_n, "DRY RUN" if dry_run else "LIVE")
     logger.info("═" * 60)
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    api_key = os.environ.get("GLM_API_KEY", "")
     tg_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-    tg_channel = os.environ.get("TELEGRAM_CHANNEL_ID", "@AgenticNow")
+    tg_channel = os.environ.get("TELEGRAM_CHANNEL_ID", "")
 
     if not api_key:
-        logger.error("ANTHROPIC_API_KEY 未设置，退出。")
+        logger.error("GLM_API_KEY 未设置，退出。")
         sys.exit(1)
     if not dry_run and not tg_token:
         logger.error("TELEGRAM_BOT_TOKEN 未设置（正式模式需要），退出。")
+        sys.exit(1)
+    if not dry_run and not tg_channel:
+        logger.error("TELEGRAM_CHANNEL_ID 未设置（正式模式需要），退出。")
         sys.exit(1)
 
     store = URLStore(store_path)
@@ -512,7 +522,7 @@ def run(
     matched = persona_match(passed)
 
     # Step 4
-    logger.info("Step 4: Claude API 中文友好度评分（共 %d 个）...", len(matched))
+    logger.info("Step 4: GLM API 中文友好度评分（共 %d 个）...", len(matched))
     scored = score_china_friendliness(matched, api_key)
 
     # Step 5

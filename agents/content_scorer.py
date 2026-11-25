@@ -6,8 +6,9 @@ Agent 2 — 内容评分器
 - URL 去重（URLStore）
 - 关键词预过滤（只对 keyword_filter=True 的信源）
 - 标题语义去重（Jaccard 0.4）
-- 预排序候选文章（freshnss + type 加分）
-- 调用 Claude API 生成中文摘要 + 相关度评分（1-10）
+- 预排序候选文章（freshness + type 加分）
+- 调用 GLM API 生成中文编译标题 + 摘要 + 相关度评分（1-10）
+- 拦截未翻译条目与低于相关度门槛（默认 ≥6）的文章
 - 输出：评分后的文章列表 + 逐条过滤报告
 """
 
@@ -59,12 +60,12 @@ class ContentScorerAgent(BaseAgent):
 
     def __init__(
         self,
-        anthropic_api_key: Optional[str] = None,
+        glm_api_key: Optional[str] = None,
         store_path: str = "seen_urls.json",
         preselect_multiplier: int = 3,
     ):
         super().__init__()
-        self.api_key = anthropic_api_key or os.environ.get("ANTHROPIC_API_KEY")
+        self.api_key = glm_api_key or os.environ.get("GLM_API_KEY")
         self.url_store = URLStore(store_path)
         self.preselect_multiplier = preselect_multiplier
 
@@ -96,32 +97,21 @@ class ContentScorerAgent(BaseAgent):
         kw_filtered = self._keyword_filter(new_articles, events)
         self.logger.info("[Agent 2] 关键词过滤: %d → %d", len(new_articles), len(kw_filtered))
 
-        # ── Step 3: 预排序，取 top N 送入 Claude ────────────────────────────
+        # ── Step 3: 预排序，取 top N 送入 GLM ───────────────────────────────
         n_candidates = max_articles * self.preselect_multiplier
         candidates = self._preselect(kw_filtered, n_candidates)
         self.logger.info("[Agent 2] 预选候选: %d → %d", len(kw_filtered), len(candidates))
 
-        # ── Step 4: Claude LLM 摘要 + 相关度评分 ────────────────────────────
-        self.logger.info("[Agent 2] 调用 Claude API 评分...")
+        # ── Step 4: GLM 中文编译摘要 + 相关度评分 ───────────────────────────
+        self.logger.info("[Agent 2] 调用 GLM API 生成中文编译摘要与评分...")
         enriched = summarize_articles(candidates, api_key=self.api_key)
 
-        for art in enriched:
-            score = art.get("relevance", 5)
-            events.append(FilterEvent(
-                stage="content_scorer",
-                item=art.get("title_zh") or art.get("title", "")[:60],
-                source=art.get("source_name", "?"),
-                passed=score >= 6,
-                reason=f"LLM 相关度评分: {score}/10",
-                detail=art.get("summary_zh", "")[:80],
-            ))
-
-        # ── Step 5: 应用 min_relevance 门槛 ─────────────────────────────────
+        # ── Step 5: 校验中文编译状态 + 应用相关度门槛（全局 ≥6）─────────────
         scored = self._apply_min_relevance(enriched, events)
 
         self.logger.info(
-            "✅ [Agent 2] 完成：%d 条文章通过评分（相关度≥6）",
-            sum(1 for e in events if e.stage == "content_scorer" and e.passed),
+            "✅ [Agent 2] 完成：%d 条中文精选文章通过评分（相关度≥6）",
+            len(scored),
         )
 
         return AgentResult(
@@ -193,18 +183,41 @@ class ContentScorerAgent(BaseAgent):
     ) -> list[dict]:
         result = []
         for a in articles:
+            raw_title = a.get("title", "")[:60]
+            display_title = (a.get("title_zh") or raw_title)[:60]
+            source_name = a.get("source_name", "?")
+
+            if not a.get("translated", True) or not a.get("title_zh") or not a.get("summary_zh"):
+                events.append(FilterEvent(
+                    stage="content_scorer",
+                    item=raw_title,
+                    source=source_name,
+                    passed=False,
+                    reason="中文编译失败（拦截英文原文裸推）",
+                ))
+                continue
+
             src_id = a.get("source_id", "")
-            min_rel = _MIN_RELEVANCE.get(src_id, 0)
-            rel = a.get("relevance", 5)
+            min_rel = max(6, _MIN_RELEVANCE.get(src_id, 6))
+            rel = a.get("relevance", 0)
             if rel < min_rel:
                 events.append(FilterEvent(
                     stage="content_scorer",
-                    item=a.get("title_zh") or a.get("title", "")[:60],
-                    source=a.get("source_name", "?"),
+                    item=display_title,
+                    source=source_name,
                     passed=False,
-                    reason=f"低于信源门槛（{rel} < min_relevance={min_rel}）",
+                    reason=f"LLM 相关度不足（{rel}/10 < 门槛 {min_rel}）",
+                    detail=a.get("summary_zh", "")[:80],
                 ))
             else:
+                events.append(FilterEvent(
+                    stage="content_scorer",
+                    item=display_title,
+                    source=source_name,
+                    passed=True,
+                    reason=f"LLM 相关度评分: {rel}/10",
+                    detail=a.get("summary_zh", "")[:80],
+                ))
                 result.append(a)
         return result
 
